@@ -1,0 +1,39 @@
+# Secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# InsightFace models (large, downloaded on first run)
+~/.insightface/
+
+# Contracts artifacts (abi.json is needed at runtime — keep it)
+contracts/deployed.json
+
+# Samples (keep folder, ignore large images if desired)
+# samples/*.jpg
+# samples/*.png
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# IDE
+.idea/
+.vscode/
+*.code-workspace

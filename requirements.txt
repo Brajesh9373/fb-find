@@ -1,0 +1,22 @@
+# Face → Web → Blockchain — all free / open-source
+# Face: InsightFace (MIT) + ONNX Runtime (CPU, no GPU needed)
+insightface==0.7.3
+onnxruntime==1.19.2
+opencv-python==4.10.0.84
+numpy<2.0
+Pillow>=10.0
+
+# Search + utils (free tier SerpApi, 100/mo)
+requests>=2.31
+python-dotenv>=1.0
+
+# CLI
+rich>=13.0
+
+# Blockchain — Polygon Amoy free testnet
+web3>=7.0
+py-solc-x>=2.0
+
+# Tests
+pytest>=8.0
+pytest-cov>=5.0
