@@ -176,8 +176,8 @@ def main():
             "nonce": w3.eth.get_transaction_count(acct.address),
             "chainId": chain_id,
             "gas": 1_500_000,
-            "maxFeePerGas": w3.to_wei("30", "gwei"),
-            "maxPriorityFeePerGas": w3.to_wei("1", "gwei"),
+            "maxFeePerGas": w3.to_wei("50", "gwei"),
+            "maxPriorityFeePerGas": w3.to_wei("30", "gwei"),
         }
     )
     signed = acct.sign_transaction(tx)

@@ -70,8 +70,8 @@ class ContentRegistry:
                 "nonce": self.w3.eth.get_transaction_count(acct.address),
                 "chainId": config.CHAIN_ID,
                 "gas": 150_000,
-                "maxFeePerGas": self.w3.to_wei("30", "gwei"),
-                "maxPriorityFeePerGas": self.w3.to_wei("1", "gwei"),
+                "maxFeePerGas": self.w3.to_wei("50", "gwei"),
+                "maxPriorityFeePerGas": self.w3.to_wei("30", "gwei"),
             }
         )
         signed = acct.sign_transaction(tx)
