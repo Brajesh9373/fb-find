@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face → Web → Blockchain</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1 class="title">
+                <span class="title-icon">🔍</span>
+                Face → Web → Blockchain
+            </h1>
+            <p class="subtitle">Face Identification → Web Discovery → On-Chain Verification</p>
+            <p class="description">Upload a face image to identify, search the web, and verify on Polygon blockchain</p>
+        </header>
+
+        <!-- Upload Section -->
+        <section class="upload-section" id="upload-section">
+            <div class="upload-area" id="upload-area">
+                <div class="upload-content">
+                    <div class="upload-icon">📸</div>
+                    <h3>Drop your image here</h3>
+                    <p>or click to browse files</p>
+                    <p class="upload-hint">Supports: JPG, PNG, WebP, BMP, GIF (max 16MB)</p>
+                </div>
+                <input type="file" id="file-input" accept="image/*" hidden>
+            </div>
+            <div class="upload-preview" id="upload-preview" style="display: none;">
+                <img id="preview-image" src="" alt="Preview">
+                <button class="btn btn-secondary" id="change-image">Change Image</button>
+            </div>
+            <div class="options">
+                <label class="option">
+                    <input type="checkbox" id="tamper-demo" checked>
+                    <span>Show Tamper Demo</span>
+                </label>
+                <label class="option">
+                    <input type="checkbox" id="skip-blockchain">
+                    <span>Skip Blockchain</span>
+                </label>
+            </div>
+            <button class="btn btn-primary" id="analyze-btn" disabled>
+                <span class="btn-text">Analyze Image</span>
+                <span class="btn-loader" style="display: none;">Analyzing...</span>
+            </button>
+        </section>
+
+        <!-- Progress Section -->
+        <section class="progress-section" id="progress-section" style="display: none;">
+            <div class="progress-steps">
+                <div class="step" id="step-1">
+                    <div class="step-icon">1</div>
+                    <div class="step-label">Face Detection</div>
+                </div>
+                <div class="step-line"></div>
+                <div class="step" id="step-2">
+                    <div class="step-icon">2</div>
+                    <div class="step-label">Embedding</div>
+                </div>
+                <div class="step-line"></div>
+                <div class="step" id="step-3">
+                    <div class="step-icon">3</div>
+                    <div class="step-label">Web Search</div>
+                </div>
+                <div class="step-line"></div>
+                <div class="step" id="step-4">
+                    <div class="step-icon">4</div>
+                    <div class="step-label">Verification</div>
+                </div>
+                <div class="step-line"></div>
+                <div class="step" id="step-5">
+                    <div class="step-icon">5</div>
+                    <div class="step-label">Blockchain</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Results Section -->
+        <section class="results-section" id="results-section" style="display: none;">
+            <!-- Face Detection Result -->
+            <div class="result-card" id="result-face-detection">
+                <div class="card-header">
+                    <h3>👤 Face Detection</h3>
+                    <span class="status-badge" id="status-face-detection">Pending</span>
+                </div>
+                <div class="card-body" id="body-face-detection">
+                    <div class="loading-spinner"></div>
+                </div>
+            </div>
+
+            <!-- Embedding Result -->
+            <div class="result-card" id="result-embedding">
+                <div class="card-header">
+                    <h3>🧬 Face Embedding</h3>
+                    <span class="status-badge" id="status-embedding">Pending</span>
+                </div>
+                <div class="card-body" id="body-embedding">
+                    <div class="loading-spinner"></div>
+                </div>
+            </div>
+
+            <!-- Web Search Result -->
+            <div class="result-card" id="result-web-search">
+                <div class="card-header">
+                    <h3>🌐 Web Search</h3>
+                    <span class="status-badge" id="status-web-search">Pending</span>
+                </div>
+                <div class="card-body" id="body-web-search">
+                    <div class="loading-spinner"></div>
+                </div>
+            </div>
+
+            <!-- Verification Result -->
+            <div class="result-card" id="result-verification">
+                <div class="card-header">
+                    <h3>✅ Face Verification</h3>
+                    <span class="status-badge" id="status-verification">Pending</span>
+                </div>
+                <div class="card-body" id="body-verification">
+                    <div class="loading-spinner"></div>
+                </div>
+            </div>
+
+            <!-- Blockchain Result -->
+            <div class="result-card" id="result-blockchain">
+                <div class="card-header">
+                    <h3>⛓️ Blockchain</h3>
+                    <span class="status-badge" id="status-blockchain">Pending</span>
+                </div>
+                <div class="card-body" id="body-blockchain">
+                    <div class="loading-spinner"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Error Section -->
+        <section class="error-section" id="error-section" style="display: none;">
+            <div class="error-card">
+                <div class="error-icon">❌</div>
+                <h3>Error</h3>
+                <p id="error-message"></p>
+                <button class="btn btn-secondary" id="retry-btn">Try Again</button>
+            </div>
+        </section>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

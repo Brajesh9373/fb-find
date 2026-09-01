@@ -64,12 +64,18 @@ class ContentRegistry:
                 status=1,
             )
 
+        # Estimate gas first, then add 20% buffer
+        estimated_gas = self.contract.functions.register(hash_bytes).estimate_gas(
+            {"from": acct.address}
+        )
+        gas_limit = int(estimated_gas * 1.2)
+
         tx = self.contract.functions.register(hash_bytes).build_transaction(
             {
                 "from": acct.address,
                 "nonce": self.w3.eth.get_transaction_count(acct.address),
                 "chainId": config.CHAIN_ID,
-                "gas": 150_000,
+                "gas": gas_limit,
                 "maxFeePerGas": self.w3.to_wei("50", "gwei"),
                 "maxPriorityFeePerGas": self.w3.to_wei("30", "gwei"),
             }

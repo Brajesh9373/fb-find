@@ -1,0 +1,659 @@
+/* Face → Web → Blockchain - Frontend Styles */
+
+:root {
+    --primary: #00bcd4;
+    --primary-dark: #0097a7;
+    --success: #4caf50;
+    --error: #f44336;
+    --warning: #ff9800;
+    --background: #0a0a1a;
+    --surface: #1a1a2e;
+    --surface-light: #16213e;
+    --text: #e0e0e0;
+    --text-secondary: #9e9e9e;
+    --border: #2a2a4a;
+    --shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--background);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+/* Header */
+.header {
+    text-align: center;
+    margin-bottom: 3rem;
+    padding: 2rem;
+    background: linear-gradient(135deg, var(--surface) 0%, var(--surface-light) 100%);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+}
+
+.title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 0.5rem;
+}
+
+.title-icon {
+    font-size: 2rem;
+    margin-right: 0.5rem;
+}
+
+.subtitle {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.description {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    opacity: 0.8;
+}
+
+/* Upload Section */
+.upload-section {
+    background: var(--surface);
+    border-radius: 16px;
+    padding: 2rem;
+    border: 1px solid var(--border);
+    margin-bottom: 2rem;
+}
+
+.upload-area {
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 3rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: var(--surface-light);
+}
+
+.upload-area:hover {
+    border-color: var(--primary);
+    background: rgba(0, 188, 212, 0.05);
+}
+
+.upload-area.dragover {
+    border-color: var(--primary);
+    background: rgba(0, 188, 212, 0.1);
+    transform: scale(1.02);
+}
+
+.upload-content {
+    pointer-events: none;
+}
+
+.upload-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+}
+
+.upload-content h3 {
+    font-size: 1.3rem;
+    margin-bottom: 0.5rem;
+    color: var(--text);
+}
+
+.upload-content p {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+}
+
+.upload-hint {
+    font-size: 0.8rem !important;
+    margin-top: 1rem;
+    opacity: 0.7;
+}
+
+.upload-preview {
+    text-align: center;
+    padding: 1rem;
+}
+
+.upload-preview img {
+    max-width: 300px;
+    max-height: 300px;
+    border-radius: 12px;
+    border: 2px solid var(--border);
+    margin-bottom: 1rem;
+}
+
+.options {
+    display: flex;
+    gap: 2rem;
+    margin: 1.5rem 0;
+    justify-content: center;
+}
+
+.option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.option input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--primary);
+}
+
+/* Buttons */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 32px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: inherit;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: white;
+    width: 100%;
+    max-width: 300px;
+    margin: 0 auto;
+    display: block;
+}
+
+.btn-primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 188, 212, 0.4);
+}
+
+.btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-secondary {
+    background: var(--surface-light);
+    color: var(--text);
+    border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+    background: var(--border);
+}
+
+/* Progress Section */
+.progress-section {
+    background: var(--surface);
+    border-radius: 16px;
+    padding: 2rem;
+    border: 1px solid var(--border);
+    margin-bottom: 2rem;
+}
+
+.progress-steps {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+}
+
+.step-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--surface-light);
+    border: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+}
+
+.step.active .step-icon {
+    border-color: var(--primary);
+    color: var(--primary);
+    box-shadow: 0 0 15px rgba(0, 188, 212, 0.3);
+}
+
+.step.completed .step-icon {
+    background: var(--success);
+    border-color: var(--success);
+    color: white;
+}
+
+.step.error .step-icon {
+    background: var(--error);
+    border-color: var(--error);
+    color: white;
+}
+
+.step-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+.step.active .step-label {
+    color: var(--primary);
+    font-weight: 500;
+}
+
+.step.completed .step-label {
+    color: var(--success);
+}
+
+.step-line {
+    flex: 1;
+    height: 2px;
+    background: var(--border);
+    margin: 0 -10px;
+    margin-bottom: 24px;
+}
+
+.step-line.active {
+    background: var(--primary);
+}
+
+.step-line.completed {
+    background: var(--success);
+}
+
+/* Results Section */
+.results-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.result-card {
+    background: var(--surface);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.result-card.success {
+    border-color: var(--success);
+}
+
+.result-card.error {
+    border-color: var(--error);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    background: var(--surface-light);
+    border-bottom: 1px solid var(--border);
+}
+
+.card-header h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.status-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-badge.pending {
+    background: var(--surface-light);
+    color: var(--text-secondary);
+}
+
+.status-badge.success {
+    background: rgba(76, 175, 80, 0.2);
+    color: var(--success);
+}
+
+.status-badge.error {
+    background: rgba(244, 67, 54, 0.2);
+    color: var(--error);
+}
+
+.status-badge.skipped {
+    background: rgba(255, 152, 0, 0.2);
+    color: var(--warning);
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+/* Loading Spinner */
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 1rem auto;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Data Display */
+.data-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.data-item {
+    background: var(--surface-light);
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+
+.data-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.3rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.data-value {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text);
+    word-break: break-all;
+}
+
+.data-value.hash {
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    color: var(--primary);
+}
+
+.data-value.success {
+    color: var(--success);
+}
+
+.data-value.error {
+    color: var(--error);
+}
+
+/* Candidates Table */
+.candidates-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+.candidates-table th,
+.candidates-table td {
+    padding: 0.8rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+}
+
+.candidates-table th {
+    background: var(--surface-light);
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.candidates-table tr:hover {
+    background: rgba(0, 188, 212, 0.05);
+}
+
+.candidates-table .social-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: rgba(0, 188, 212, 0.2);
+    color: var(--primary);
+}
+
+/* Blockchain Section */
+.blockchain-info {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.blockchain-item {
+    background: var(--surface-light);
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+
+.blockchain-item .label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.3rem;
+}
+
+.blockchain-item .value {
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    color: var(--primary);
+    word-break: break-all;
+}
+
+/* Verification Badge */
+.verification-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 1rem 0;
+}
+
+.verification-badge.verified {
+    background: rgba(76, 175, 80, 0.2);
+    color: var(--success);
+    border: 2px solid var(--success);
+}
+
+.verification-badge.failed {
+    background: rgba(244, 67, 54, 0.2);
+    color: var(--error);
+    border: 2px solid var(--error);
+}
+
+/* Tamper Demo */
+.tamper-demo {
+    background: var(--surface-light);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-top: 1.5rem;
+    border: 1px solid var(--border);
+}
+
+.tamper-demo h4 {
+    color: var(--warning);
+    margin-bottom: 1rem;
+    font-size: 1rem;
+}
+
+.tamper-comparison {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.tamper-item {
+    background: var(--surface);
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+
+.tamper-item.original {
+    border-color: var(--success);
+}
+
+.tamper-item.tampered {
+    border-color: var(--error);
+}
+
+.tamper-item .label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.tamper-item .hash {
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    word-break: break-all;
+    padding: 0.5rem;
+    background: var(--surface-light);
+    border-radius: 4px;
+}
+
+.tamper-item.original .hash {
+    color: var(--success);
+}
+
+.tamper-item.tampered .hash {
+    color: var(--error);
+}
+
+/* Error Section */
+.error-section {
+    margin-top: 2rem;
+}
+
+.error-card {
+    background: var(--surface);
+    border-radius: 16px;
+    padding: 2rem;
+    text-align: center;
+    border: 2px solid var(--error);
+}
+
+.error-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.error-card h3 {
+    color: var(--error);
+    margin-bottom: 0.5rem;
+}
+
+.error-card p {
+    color: var(--text-secondary);
+    margin-bottom: 1.5rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .container {
+        padding: 1rem;
+    }
+
+    .title {
+        font-size: 1.8rem;
+    }
+
+    .progress-steps {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .step-line {
+        width: 2px;
+        height: 20px;
+        margin: 0;
+    }
+
+    .data-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .blockchain-info {
+        grid-template-columns: 1fr;
+    }
+
+    .tamper-comparison {
+        grid-template-columns: 1fr;
+    }
+
+    .options {
+        flex-direction: column;
+        gap: 1rem;
+    }
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.result-card {
+    animation: fadeIn 0.5s ease-out;
+}
+
+.result-card:nth-child(2) { animation-delay: 0.1s; }
+.result-card:nth-child(3) { animation-delay: 0.2s; }
+.result-card:nth-child(4) { animation-delay: 0.3s; }
+.result-card:nth-child(5) { animation-delay: 0.4s; }

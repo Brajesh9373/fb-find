@@ -56,18 +56,21 @@ class GoogleLensSearcher:
         last_exc: Exception | None = None
         for attempt in range(2):
             try:
-                with open(image_path, "rb") as fh:
-                    files = {"image": fh}
-                    params = {
-                        "engine": "google_lens",
-                        "api_key": self.api_key,
-                    }
-                    resp = requests.post(
-                        SERPAPI_ENDPOINT,
-                        params=params,
-                        files=files,
-                        timeout=config.SEARCH_TIMEOUT,
-                    )
+                # SerpApi Google Lens requires a public image URL, not file upload.
+                # Upload to 0x0.st (free, no API key) to get a temporary URL.
+                image_url = self._upload_image(image_path)
+                logger.info("Image uploaded, searching via URL ...")
+
+                params = {
+                    "engine": "google_lens",
+                    "url": image_url,
+                    "api_key": self.api_key,
+                }
+                resp = requests.get(
+                    SERPAPI_ENDPOINT,
+                    params=params,
+                    timeout=config.SEARCH_TIMEOUT,
+                )
 
                 if resp.status_code == 429:
                     raise RuntimeError(
@@ -105,6 +108,27 @@ class GoogleLensSearcher:
         if last_exc:
             raise last_exc
         return []
+
+    @staticmethod
+    def _upload_image(image_path: str) -> str:
+        """Upload image to catbox.moe and return the public URL."""
+        logger.info("Uploading image to temporary hosting (catbox.moe) ...")
+        with open(image_path, "rb") as fh:
+            resp = requests.post(
+                "https://catbox.moe/user/api.php",
+                data={"reqtype": "fileupload"},
+                files={"fileToUpload": fh},
+                timeout=60,
+            )
+        if resp.status_code != 200:
+            raise RuntimeError(
+                f"Image upload failed (HTTP {resp.status_code}): {resp.text[:200]}"
+            )
+        url = resp.text.strip()
+        if not url.startswith("http"):
+            raise RuntimeError(f"Unexpected upload response: {url}")
+        logger.info("Image uploaded: %s", url)
+        return url
 
     def search_from_url(self, image_url: str) -> list[dict[str, Any]]:
         """Search using a publicly-accessible image URL (no upload)."""
