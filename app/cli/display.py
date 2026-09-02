@@ -2,12 +2,21 @@
 
 from __future__ import annotations
 
+import sys
+
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-console = Console()
+console = Console(legacy_windows=False)
 
 
 def banner():
@@ -38,15 +47,17 @@ def info(msg: str):
     console.print(f"      [dim]{msg}[/]")
 
 
-def match_box(platform: str, similarity: float, url: str):
+def match_box(platform: str, similarity: float, url: str, confidence_tier: str = "HIGH"):
+    tier_label = "HIGH CONFIDENCE MATCH ✓" if confidence_tier == "HIGH" else "PROBABLE MATCH ✓ (Pose/Lighting Variation)"
+    border = "green" if confidence_tier == "HIGH" else "yellow"
     console.print(
         Panel(
-            f"[bold green]MATCH DISCOVERED ✓[/]\n\n"
+            f"[bold {border}]{tier_label}[/]\n\n"
             f"[white]Platform:[/] [cyan]{platform}[/]\n"
-            f"[white]Similarity:[/] [green]{similarity*100:.1f}%[/]\n\n"
+            f"[white]Similarity:[/] [{border}]{similarity*100:.1f}%[/]  [dim]({confidence_tier} tier)[/]\n\n"
             f"[white]URL:[/]\n[dim link={url}]{url}[/]",
             title="Face Verification",
-            border_style="green",
+            border_style=border,
         )
     )
 
@@ -124,5 +135,43 @@ def candidates_table(candidates: list[dict]):
             c.get("title", "")[:55],
             c.get("url", "")[:45],
             str(score),
+        )
+    console.print(table)
+ 
+ 
+def top_matches_table(evaluated: list[dict]):
+    """Show summary table of evaluated candidates and their similarity."""
+    if not evaluated:
+        return
+    table = Table(title="Candidate Face Match Summary", show_lines=False)
+    table.add_column("#", style="dim", width=4)
+    table.add_column("Source", style="cyan")
+    table.add_column("Similarity", justify="right")
+    table.add_column("Status")
+    table.add_column("URL", style="dim", max_width=50, overflow="ellipsis")
+
+    for idx, item in enumerate(evaluated[:8], 1):
+        cand = item.get("candidate", {})
+        sim = item.get("similarity", 0.0)
+        tier = item.get("confidence_tier", "UNMATCHED")
+        if tier == "HIGH":
+            sim_str = f"[bold green]{sim*100:.1f}%[/]"
+            stat_str = "[bold green]HIGH MATCH ✓[/]"
+        elif tier == "PROBABLE":
+            sim_str = f"[bold yellow]{sim*100:.1f}%[/]"
+            stat_str = "[yellow]PROBABLE MATCH[/]"
+        elif item.get("has_face", False):
+            sim_str = f"[dim red]{sim*100:.1f}%[/]"
+            stat_str = "[dim]No match[/]"
+        else:
+            sim_str = "[dim]—[/]"
+            stat_str = "[dim red]No face detected[/]"
+
+        table.add_row(
+            str(idx),
+            cand.get("source", "")[:20],
+            sim_str,
+            stat_str,
+            cand.get("url", "")[:50],
         )
     console.print(table)

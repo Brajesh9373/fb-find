@@ -1,12 +1,13 @@
-"""Pipeline wrapper for web API — returns structured JSON instead of CLI output."""
+"""Pipeline wrapper for web API — streams structured JSON step-by-step via SSE."""
 
 from __future__ import annotations
 
 import copy
+import json
 import logging
 import os
 import tempfile
-from typing import Any
+from typing import Any, Generator
 from urllib.parse import urlparse
 
 from app import config
@@ -22,82 +23,147 @@ from app.search.ranking import is_social, rank_candidates
 logger = logging.getLogger(__name__)
 
 
-def run_pipeline(
+def _mock_candidates(input_image_path: str = "") -> list[dict]:
+    """Synthetic results for offline testing (no network)."""
+    return [
+        {
+            "title": "Technology Conference 2026 — Instagram",
+            "url": "https://www.instagram.com/p/mock_tech_conf_2026/",
+            "source": "instagram.com",
+            "thumbnail": input_image_path,
+            "image_url": input_image_path,
+            "position": 1,
+        },
+        {
+            "title": "Random blog post about photography",
+            "url": "https://example.com/blog/photography-tips",
+            "source": "example.com",
+            "thumbnail": "https://via.placeholder.com/400",
+            "image_url": "https://via.placeholder.com/400",
+            "position": 2,
+        },
+        {
+            "title": "LinkedIn — Professional profile",
+            "url": "https://www.linkedin.com/in/mock-profile/",
+            "source": "linkedin.com",
+            "thumbnail": "https://via.placeholder.com/400",
+            "image_url": "https://via.placeholder.com/400",
+            "position": 3,
+        },
+    ]
+
+
+def _sse(event: str, data: Any) -> str:
+    """Format a Server-Sent Event."""
+    return f"event: {event}\ndata: {json.dumps(data, default=str)}\n\n"
+
+
+def run_pipeline_stream(
     image_path: str,
     threshold: float | None = None,
+    probable_threshold: float | None = None,
+    allow_probable: bool = True,
     skip_blockchain: bool = False,
     tamper_demo: bool = True,
     max_verify: int | None = None,
-) -> dict[str, Any]:
-    """Run the full pipeline and return structured results.
+    mock_search: bool = False,
+) -> Generator[str, None, None]:
+    """Run the full pipeline, yielding SSE events for each step.
 
-    Returns a dict with keys: success, steps (face_detection, embedding,
-    web_search, verification, blockchain), error.
+    Events emitted:
+      - step_started  { step, message }
+      - step_progress { step, message }
+      - step_done     { step, data }
+      - step_error    { step, error }
+      - pipeline_done { success, error, uploaded_image_url }
     """
-    threshold = threshold or config.FACE_MATCH_THRESHOLD
+    high_threshold = threshold or config.FACE_MATCH_THRESHOLD
+    prob_threshold = (
+        probable_threshold
+        if probable_threshold is not None
+        else getattr(config, "PROBABLE_MATCH_THRESHOLD", 0.30)
+    )
     max_verify = max_verify or config.MAX_CANDIDATES_TO_VERIFY
 
-    result: dict[str, Any] = {
-        "success": False,
-        "steps": {
-            "face_detection": {"status": "pending"},
-            "embedding": {"status": "pending"},
-            "web_search": {"status": "pending"},
-            "verification": {"status": "pending"},
-            "blockchain": {"status": "pending"},
-        },
-        "error": None,
-    }
+    logger.info("=" * 50)
+    logger.info("Pipeline started — thresholds: High>=%.0f%% Probable>=%.0f%%", high_threshold * 100, prob_threshold * 100)
+    logger.info("=" * 50)
+
+    uploaded_image_url = f"/uploads/{os.path.basename(image_path)}"
 
     # ── Step 1: Face Detection ──────────────────────────────────────
+    logger.info("STEP 1/5 — Face Detection: Loading model...")
+    yield _sse("step_started", {"step": "face_detection", "message": "Loading face detection model..."})
+
     try:
         detector = FaceDetector()
+        logger.info("STEP 1/5 — Detecting faces...")
+        yield _sse("step_progress", {"step": "face_detection", "message": "Detecting faces in image..."})
+
         faces = detector.detect(image_path)
 
         if not faces:
-            result["error"] = "No face detected in the image"
-            result["steps"]["face_detection"]["status"] = "error"
-            return result
+            yield _sse("step_error", {"step": "face_detection", "error": "No face detected in the image"})
+            yield _sse("pipeline_done", {"success": False, "error": "No face detected in the image", "uploaded_image_url": uploaded_image_url})
+            return
 
         best = faces[0]
-        result["steps"]["face_detection"] = {
+        face_data = {
             "status": "success",
             "bbox": [int(v) for v in best.bbox],
             "confidence": round(float(best.confidence), 4),
             "embedding_dim": int(best.embedding.shape[0]),
             "faces_count": len(faces),
         }
+        yield _sse("step_done", {"step": "face_detection", "data": face_data})
+        logger.info("STEP 1/5 — Done: %d face(s) found, confidence %.1f%%", len(faces), float(best.confidence) * 100)
     except Exception as exc:
-        result["error"] = f"Face detection failed: {exc}"
-        result["steps"]["face_detection"]["status"] = "error"
-        return result
+        yield _sse("step_error", {"step": "face_detection", "error": f"Face detection failed: {exc}"})
+        yield _sse("pipeline_done", {"success": False, "error": f"Face detection failed: {exc}", "uploaded_image_url": uploaded_image_url})
+        return
 
     # ── Step 2: Embedding ───────────────────────────────────────────
+    logger.info("STEP 2/5 — Computing face embedding...")
+    yield _sse("step_started", {"step": "embedding", "message": "Computing face embedding..."})
+
     try:
         query_emb = norm_emb(best.embedding)
-        result["steps"]["embedding"] = {
+        embed_data = {
             "status": "success",
             "norm": round(float(query_emb.dot(query_emb)), 4),
         }
+        yield _sse("step_done", {"step": "embedding", "data": embed_data})
+        logger.info("STEP 2/5 — Done: embedding norm %.4f", embed_data["norm"])
     except Exception as exc:
-        result["error"] = f"Embedding failed: {exc}"
-        result["steps"]["embedding"]["status"] = "error"
-        return result
+        yield _sse("step_error", {"step": "embedding", "error": f"Embedding failed: {exc}"})
+        yield _sse("pipeline_done", {"success": False, "error": f"Embedding failed: {exc}", "uploaded_image_url": uploaded_image_url})
+        return
 
     # ── Step 3: Web Search ──────────────────────────────────────────
+    logger.info("STEP 3/5 — Searching web for matching faces...")
+    yield _sse("step_started", {"step": "web_search", "message": "Searching web for matching faces..."})
+
     try:
-        searcher = GoogleLensSearcher()
-        candidates = searcher.search(image_path)
+        if mock_search:
+            yield _sse("step_progress", {"step": "web_search", "message": "Using mock search results (offline mode)..."})
+            candidates = _mock_candidates(image_path)
+        else:
+            yield _sse("step_progress", {"step": "web_search", "message": "Uploading image to search engine..."})
+            searcher = GoogleLensSearcher()
+            candidates = searcher.search(image_path)
 
         if not candidates:
-            result["error"] = "No candidates found from web search"
-            result["steps"]["web_search"]["status"] = "error"
-            return result
+            yield _sse("step_error", {"step": "web_search", "error": "No candidates found from web search"})
+            yield _sse("pipeline_done", {"success": False, "error": "No candidates found from web search", "uploaded_image_url": uploaded_image_url})
+            return
 
         social_count = sum(1 for c in candidates if is_social(c.get("url", "")))
         ranked = rank_candidates(candidates)
 
-        result["steps"]["web_search"] = {
+        yield _sse("step_progress", {"step": "web_search", "message": f"Found {len(candidates)} candidates, ranking..."})
+        logger.info("STEP 3/5 — Done: %d candidates found (%d social)", len(candidates), social_count)
+
+        web_data = {
             "status": "success",
             "candidates_count": len(candidates),
             "social_count": social_count,
@@ -110,65 +176,135 @@ def run_pipeline(
                     "thumbnail": c.get("thumbnail", ""),
                     "is_social": is_social(c.get("url", "")),
                 }
-                for c in ranked[:12]
+                for c in ranked[:15]
             ],
         }
+        yield _sse("step_done", {"step": "web_search", "data": web_data})
     except Exception as exc:
-        result["error"] = f"Web search failed: {exc}"
-        result["steps"]["web_search"]["status"] = "error"
-        return result
+        yield _sse("step_error", {"step": "web_search", "error": f"Web search failed: {exc}"})
+        yield _sse("pipeline_done", {"success": False, "error": f"Web search failed: {exc}", "uploaded_image_url": uploaded_image_url})
+        return
 
     # ── Step 4: Verification ────────────────────────────────────────
+    from app.face.similarity import get_confidence_tier
+
+    logger.info("STEP 4/5 — Verifying top %d candidates (High>=%.0f%%, Probable>=%.0f%%)...", max_verify, high_threshold * 100, prob_threshold * 100)
+    yield _sse("step_started", {"step": "verification", "message": f"Verifying top {max_verify} candidates..."})
+
     matched = None
     matched_similarity = 0.0
+    matched_tier = "UNMATCHED"
+    evaluated_candidates = []
+    best_probable = None
 
     try:
         to_verify = ranked[:max_verify]
 
-        for cand in to_verify:
-            face, img_bytes = extract_face_from_candidate(cand, detector)
+        for idx, cand in enumerate(to_verify):
+            yield _sse("step_progress", {
+                "step": "verification",
+                "message": f"Checking candidate {idx + 1}/{len(to_verify)}: {cand.get('source', 'Unknown')}...",
+            })
+
+            face, img_bytes = extract_face_from_candidate(cand, detector, query_emb=query_emb)
             if face is None:
+                evaluated_candidates.append({
+                    "title": cand.get("title", ""),
+                    "url": cand.get("url", ""),
+                    "source": cand.get("source", ""),
+                    "similarity": 0.0,
+                    "confidence_tier": "UNMATCHED",
+                    "has_face": False,
+                })
+                yield _sse("step_progress", {"step": "verification", "message": f"  → No face found in candidate image"})
+                logger.info("  Candidate %d/%d [%s]: No face found", idx + 1, len(to_verify), cand.get("source", "?"))
                 continue
 
             sim = cosine_similarity(query_emb, face.embedding)
+            tier = get_confidence_tier(
+                sim, high_threshold=high_threshold, probable_threshold=prob_threshold
+            )
+            eval_entry = {
+                "title": cand.get("title", ""),
+                "url": cand.get("url", ""),
+                "source": cand.get("source", ""),
+                "similarity": round(float(sim), 4),
+                "confidence_tier": tier,
+                "has_face": True,
+            }
+            evaluated_candidates.append(eval_entry)
 
-            if sim >= threshold:
+            yield _sse("step_progress", {
+                "step": "verification",
+                "message": f"  → Similarity: {sim:.1%} ({tier})",
+            })
+            logger.info("  Candidate %d/%d [%s]: %.1f%% — %s", idx + 1, len(to_verify), cand.get("source", "?"), sim * 100, tier)
+
+            if tier == "HIGH":
                 matched = cand
                 matched_similarity = sim
+                matched_tier = "HIGH"
                 break
+            elif tier == "PROBABLE":
+                if best_probable is None or sim > best_probable["similarity"]:
+                    best_probable = {
+                        "candidate": cand,
+                        "similarity": sim,
+                        "tier": "PROBABLE",
+                    }
+
+        # If no HIGH match was found, but a PROBABLE match exists and allowed
+        if matched is None and allow_probable and best_probable is not None:
+            matched = best_probable["candidate"]
+            matched_similarity = best_probable["similarity"]
+            matched_tier = "PROBABLE"
 
         if matched is None:
-            result["error"] = f"No candidate passed verification at {threshold:.0%} threshold"
-            result["steps"]["verification"]["status"] = "error"
-            return result
+            yield _sse("step_error", {
+                "step": "verification",
+                "error": f"No candidate passed verification (High: ≥{high_threshold:.0%}, Probable: ≥{prob_threshold:.0%})",
+                "evaluated_candidates": evaluated_candidates,
+            })
+            yield _sse("pipeline_done", {
+                "success": False,
+                "error": f"No candidate passed verification (High: ≥{high_threshold:.0%}, Probable: ≥{prob_threshold:.0%})",
+                "uploaded_image_url": uploaded_image_url,
+                "evaluated_candidates": evaluated_candidates,
+            })
+            return
 
         try:
             plat_label = urlparse(matched["url"]).netloc.removeprefix("www.")
         except Exception:
             plat_label = matched.get("source", "")
 
-        result["steps"]["verification"] = {
+        verification_data = {
             "status": "success",
             "matched": True,
             "platform": plat_label,
             "similarity": round(float(matched_similarity), 4),
+            "confidence_tier": matched_tier,
             "url": matched["url"],
             "title": matched.get("title", ""),
             "image_url": matched.get("image_url", "") or matched.get("thumbnail", ""),
+            "evaluated_candidates": evaluated_candidates,
         }
+        yield _sse("step_done", {"step": "verification", "data": verification_data})
+        logger.info("STEP 4/5 — Done: MATCHED [%s] at %.1f%% (%s)", plat_label, matched_similarity * 100, matched_tier)
     except Exception as exc:
-        result["error"] = f"Verification failed: {exc}"
-        result["steps"]["verification"]["status"] = "error"
-        return result
+        yield _sse("step_error", {"step": "verification", "error": f"Verification failed: {exc}"})
+        yield _sse("pipeline_done", {"success": False, "error": f"Verification failed: {exc}", "uploaded_image_url": uploaded_image_url})
+        return
 
     # ── Step 5: Blockchain ──────────────────────────────────────────
     if skip_blockchain:
-        result["steps"]["blockchain"] = {
-            "status": "skipped",
-            "reason": "Blockchain skipped by request",
-        }
-        result["success"] = True
-        return result
+        logger.info("STEP 5/5 — Skipped (user request)")
+        yield _sse("step_done", {"step": "blockchain", "data": {"status": "skipped", "reason": "Blockchain skipped by request"}})
+        yield _sse("pipeline_done", {"success": True, "error": None, "uploaded_image_url": uploaded_image_url})
+        return
+
+    logger.info("STEP 5/5 — Registering on blockchain...")
+    yield _sse("step_started", {"step": "blockchain", "message": "Registering content hash on blockchain..."})
 
     try:
         payload = build_canonical_payload(
@@ -180,10 +316,14 @@ def run_pipeline(
         )
         content_hash = fingerprint_canonical(payload)
 
+        yield _sse("step_progress", {"step": "blockchain", "message": "Submitting transaction to Polygon Amoy..."})
+
         from app.blockchain.registry import ContentRegistry
 
         registry = ContentRegistry()
         receipt = registry.register(content_hash)
+
+        yield _sse("step_progress", {"step": "blockchain", "message": f"Transaction submitted: {receipt.tx_hash[:20]}..."})
 
         # Re-verification
         recomputed = fingerprint_canonical(payload)
@@ -234,13 +374,12 @@ def run_pipeline(
                 "on_chain_verified": tamper_verify.verified,
             }
 
-        result["steps"]["blockchain"] = blockchain_data
-        result["success"] = True
+        yield _sse("step_done", {"step": "blockchain", "data": blockchain_data})
+        yield _sse("pipeline_done", {"success": True, "error": None, "uploaded_image_url": uploaded_image_url})
+        logger.info("STEP 5/5 — Done: TX %s (block #%s)", receipt.tx_hash[:20], receipt.block_number)
+        logger.info("Pipeline completed successfully!")
 
     except Exception as exc:
-        result["error"] = f"Blockchain step failed: {exc}"
-        result["steps"]["blockchain"]["status"] = "error"
+        yield _sse("step_error", {"step": "blockchain", "error": f"Blockchain step failed: {exc}"})
         # Still mark success since face+search+verification worked
-        result["success"] = True
-
-    return result
+        yield _sse("pipeline_done", {"success": True, "error": f"Blockchain step failed: {exc}", "uploaded_image_url": uploaded_image_url})

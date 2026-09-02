@@ -1,7 +1,9 @@
 # Secrets
 .env
+.env.*
 .env.local
 .env.*.local
+env_*
 
 # Python
 __pycache__/
@@ -48,6 +50,9 @@ Thumbs.db
 
 # Temp files
 /tmp/
+
+# Uploaded images
+uploads/
 
 # CommandCode
 .commandcode/

@@ -1,4 +1,4 @@
-// Face → Web → Blockchain - Frontend Logic
+// Face → Web → Blockchain - Frontend Logic (SSE streaming)
 
 document.addEventListener('DOMContentLoaded', () => {
     // DOM Elements
@@ -15,8 +15,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const errorSection = document.getElementById('error-section');
     const errorMessage = document.getElementById('error-message');
     const retryBtn = document.getElementById('retry-btn');
+    const logOutput = document.getElementById('log-output');
 
     let selectedFile = null;
+    const STEP_MAP = { face_detection: 1, embedding: 2, web_search: 3, verification: 4, blockchain: 5 };
 
     // File Upload Handlers
     uploadArea.addEventListener('click', () => fileInput.click());
@@ -50,14 +52,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function handleFile(file) {
-        // Validate file type
         const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/bmp', 'image/gif'];
         if (!allowedTypes.includes(file.type)) {
             showError('Invalid file type. Please upload JPG, PNG, WebP, BMP, or GIF.');
             return;
         }
 
-        // Validate file size (16MB)
         if (file.size > 16 * 1024 * 1024) {
             showError('File too large. Maximum size is 16MB.');
             return;
@@ -65,7 +65,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         selectedFile = file;
 
-        // Show preview
         const reader = new FileReader();
         reader.onload = (e) => {
             previewImage.src = e.target.result;
@@ -78,6 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function resetUpload() {
         selectedFile = null;
+        window._uploadedImageUrl = null;
         fileInput.value = '';
         uploadArea.style.display = 'block';
         uploadPreview.style.display = 'none';
@@ -85,7 +85,6 @@ document.addEventListener('DOMContentLoaded', () => {
         hideAllSections();
     }
 
-    // Analyze Button
     analyzeBtn.addEventListener('click', () => {
         if (!selectedFile) return;
         analyzeImage();
@@ -96,71 +95,159 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     async function analyzeImage() {
-        // Show loading state
         analyzeBtn.disabled = true;
         btnText.style.display = 'none';
         btnLoader.style.display = 'inline';
 
-        // Show progress section
         hideAllSections();
         progressSection.style.display = 'block';
         resultsSection.style.display = 'flex';
+        if (logOutput) logOutput.innerHTML = '';
 
-        // Reset all steps
         resetSteps();
         resetResults();
 
-        // Prepare form data
         const formData = new FormData();
         formData.append('image', selectedFile);
-        formData.append('tamper_demo', document.getElementById('tamper-demo').checked);
-        formData.append('skip_blockchain', document.getElementById('skip-blockchain').checked);
+        formData.append('tamper_demo', document.getElementById('tamper-demo')?.checked ?? false);
+        formData.append('skip_blockchain', document.getElementById('skip-blockchain')?.checked ?? false);
+        formData.append('mock_search', document.getElementById('mock-search')?.checked ?? false);
 
         try {
-            // Simulate progress updates
-            simulateProgress();
+            const response = await fetch('/api/analyze', { method: 'POST', body: formData });
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
 
-            // Make API call
-            const response = await fetch('/api/analyze', {
-                method: 'POST',
-                body: formData,
-            });
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
 
-            const data = await response.json();
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop();
 
-            if (data.success) {
-                displayResults(data.steps);
-            } else {
-                showError(data.error || 'Analysis failed');
+                let eventType = null;
+                let eventData = '';
+
+                for (const line of lines) {
+                    if (line.startsWith('event: ')) {
+                        eventType = line.slice(7).trim();
+                    } else if (line.startsWith('data: ')) {
+                        eventData += line.slice(6);
+                    } else if (line === '' && eventType) {
+                        try {
+                            const parsed = JSON.parse(eventData);
+                            handleSSEEvent(eventType, parsed);
+                        } catch (e) {
+                            console.warn('SSE parse error:', e);
+                        }
+                        eventType = null;
+                        eventData = '';
+                    }
+                }
             }
         } catch (error) {
             showError('Network error: ' + error.message);
         } finally {
-            // Reset button state
             analyzeBtn.disabled = false;
             btnText.style.display = 'inline';
             btnLoader.style.display = 'none';
         }
     }
 
-    function simulateProgress() {
-        const steps = ['step-1', 'step-2', 'step-3', 'step-4', 'step-5'];
-        let currentStep = 0;
+    function handleSSEEvent(type, data) {
+        switch (type) {
+            case 'step_started':
+                markStepActive(data.step);
+                appendLog(`[${data.step}] ${data.message}`, 'info');
+                setStepStatus(data.step, 'Running...', 'running');
+                break;
 
-        const interval = setInterval(() => {
-            if (currentStep < steps.length) {
-                // Mark previous step as completed
-                if (currentStep > 0) {
-                    document.getElementById(steps[currentStep - 1]).classList.remove('active');
-                    document.getElementById(steps[currentStep - 1]).classList.add('completed');
+            case 'step_progress':
+                appendLog(`  ${data.message}`, 'progress');
+                break;
+
+            case 'step_done':
+                markStepCompleted(data.step);
+                setStepStatus(data.step, 'Done', 'success');
+                appendLog(`[${data.step}] Completed`, 'success');
+                displayStepResult(data.step, data.data);
+                break;
+
+            case 'step_error':
+                markStepError(data.step);
+                setStepStatus(data.step, 'Error', 'error');
+                appendLog(`[${data.step}] ${data.error}`, 'error');
+                if (data.evaluated_candidates) {
+                    displayVerification({ status: 'error', matched: false, evaluated_candidates: data.evaluated_candidates });
                 }
-                // Mark current step as active
-                document.getElementById(steps[currentStep]).classList.add('active');
-                currentStep++;
-            } else {
-                clearInterval(interval);
-            }
-        }, 500);
+                break;
+
+            case 'pipeline_done':
+                window._uploadedImageUrl = data.uploaded_image_url || null;
+                if (!data.success && data.error) {
+                    showError(data.error);
+                }
+                break;
+        }
+    }
+
+    function appendLog(message, level) {
+        if (!logOutput) return;
+        const line = document.createElement('div');
+        line.className = `log-line log-${level}`;
+        line.textContent = message;
+        logOutput.appendChild(line);
+        logOutput.scrollTop = logOutput.scrollHeight;
+    }
+
+    function markStepActive(stepName) {
+        const num = STEP_MAP[stepName];
+        if (!num) return;
+        const el = document.getElementById(`step-${num}`);
+        if (el) {
+            el.classList.remove('completed', 'error');
+            el.classList.add('active');
+        }
+    }
+
+    function markStepCompleted(stepName) {
+        const num = STEP_MAP[stepName];
+        if (!num) return;
+        const el = document.getElementById(`step-${num}`);
+        if (el) {
+            el.classList.remove('active', 'error');
+            el.classList.add('completed');
+        }
+    }
+
+    function markStepError(stepName) {
+        const num = STEP_MAP[stepName];
+        if (!num) return;
+        const el = document.getElementById(`step-${num}`);
+        if (el) {
+            el.classList.remove('active', 'completed');
+            el.classList.add('error');
+        }
+    }
+
+    function setStepStatus(stepName, text, level) {
+        const el = document.getElementById(`status-${stepName}`);
+        if (el) {
+            el.textContent = text;
+            el.className = `status-badge ${level}`;
+        }
+    }
+
+    function displayStepResult(stepName, data) {
+        switch (stepName) {
+            case 'face_detection': displayFaceDetection(data); break;
+            case 'embedding': displayEmbedding(data); break;
+            case 'web_search': displayWebSearch(data); break;
+            case 'verification': displayVerification(data); break;
+            case 'blockchain': displayBlockchain(data); break;
+        }
     }
 
     function resetSteps() {
@@ -196,31 +283,28 @@ document.addEventListener('DOMContentLoaded', () => {
         errorMessage.textContent = message;
     }
 
-    function displayResults(steps) {
-        // Mark all steps as completed
-        for (let i = 1; i <= 5; i++) {
-            const step = document.getElementById(`step-${i}`);
-            step.classList.remove('active');
-            step.classList.add('completed');
-        }
-
-        // Display each step result
-        displayFaceDetection(steps.face_detection);
-        displayEmbedding(steps.embedding);
-        displayWebSearch(steps.web_search);
-        displayVerification(steps.verification);
-        displayBlockchain(steps.blockchain);
-    }
-
     function displayFaceDetection(data) {
-        const status = document.getElementById('status-face-detection');
         const body = document.getElementById('body-face-detection');
         const card = document.getElementById('result-face-detection');
 
         if (data.status === 'success') {
-            status.textContent = 'Success';
-            status.className = 'status-badge success';
             card.classList.add('success');
+
+            let imageLinkHtml = '';
+            if (window._uploadedImageUrl) {
+                const fullUrl = window.location.origin + window._uploadedImageUrl;
+                imageLinkHtml = `
+                    <div class="data-item" style="grid-column: 1 / -1;">
+                        <div class="data-label">Image Link</div>
+                        <div class="data-value">
+                            <a href="${fullUrl}" target="_blank" rel="noopener" style="color: var(--primary); text-decoration: none; word-break: break-all;">
+                                ${fullUrl}
+                            </a>
+                            <button onclick="navigator.clipboard.writeText('${fullUrl}')" style="margin-left: 8px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text); cursor: pointer; font-size: 0.75rem;">Copy</button>
+                        </div>
+                    </div>
+                `;
+            }
 
             body.innerHTML = `
                 <div class="data-grid">
@@ -240,26 +324,21 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="data-label">Embedding Dimension</div>
                         <div class="data-value">${data.embedding_dim}</div>
                     </div>
+                    ${imageLinkHtml}
                 </div>
             `;
         } else {
-            status.textContent = 'Error';
-            status.className = 'status-badge error';
             card.classList.add('error');
             body.innerHTML = `<p class="data-value error">Face detection failed</p>`;
         }
     }
 
     function displayEmbedding(data) {
-        const status = document.getElementById('status-embedding');
         const body = document.getElementById('body-embedding');
         const card = document.getElementById('result-embedding');
 
         if (data.status === 'success') {
-            status.textContent = 'Success';
-            status.className = 'status-badge success';
             card.classList.add('success');
-
             body.innerHTML = `
                 <div class="data-grid">
                     <div class="data-item">
@@ -273,21 +352,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
         } else {
-            status.textContent = 'Error';
-            status.className = 'status-badge error';
             card.classList.add('error');
             body.innerHTML = `<p class="data-value error">Embedding failed</p>`;
         }
     }
 
     function displayWebSearch(data) {
-        const status = document.getElementById('status-web-search');
         const body = document.getElementById('body-web-search');
         const card = document.getElementById('result-web-search');
 
         if (data.status === 'success') {
-            status.textContent = 'Success';
-            status.className = 'status-badge success';
             card.classList.add('success');
 
             let candidatesHtml = '';
@@ -330,26 +404,42 @@ document.addEventListener('DOMContentLoaded', () => {
                 ${candidatesHtml}
             `;
         } else {
-            status.textContent = 'Error';
-            status.className = 'status-badge error';
             card.classList.add('error');
             body.innerHTML = `<p class="data-value error">Web search failed</p>`;
         }
     }
 
     function displayVerification(data) {
-        const status = document.getElementById('status-verification');
         const body = document.getElementById('body-verification');
         const card = document.getElementById('result-verification');
 
         if (data.status === 'success' && data.matched) {
-            status.textContent = 'Matched';
-            status.className = 'status-badge success';
             card.classList.add('success');
+
+            let evalHtml = '';
+            if (data.evaluated_candidates && data.evaluated_candidates.length > 0) {
+                evalHtml = `
+                    <table class="candidates-table" style="margin-top: 1rem;">
+                        <thead>
+                            <tr><th>#</th><th>Source</th><th>Similarity</th><th>Tier</th></tr>
+                        </thead>
+                        <tbody>
+                            ${data.evaluated_candidates.map((c, i) => `
+                                <tr>
+                                    <td>${i + 1}</td>
+                                    <td>${escapeHtml(c.source || 'Unknown')}</td>
+                                    <td>${c.has_face ? (c.similarity * 100).toFixed(1) + '%' : 'No face'}</td>
+                                    <td>${c.confidence_tier}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            }
 
             body.innerHTML = `
                 <div class="verification-badge verified">
-                    ✓ MATCH FOUND
+                    MATCH FOUND
                 </div>
                 <div class="data-grid">
                     <div class="data-item">
@@ -361,8 +451,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="data-value success">${(data.similarity * 100).toFixed(1)}%</div>
                     </div>
                     <div class="data-item">
-                        <div class="data-label">Title</div>
-                        <div class="data-value">${escapeHtml((data.title || '').substring(0, 60))}</div>
+                        <div class="data-label">Confidence</div>
+                        <div class="data-value ${data.confidence_tier === 'HIGH' ? 'success' : ''}">${data.confidence_tier}</div>
                     </div>
                     <div class="data-item">
                         <div class="data-label">URL</div>
@@ -373,42 +463,61 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
                 </div>
+                ${evalHtml}
             `;
         } else {
-            status.textContent = 'No Match';
-            status.className = 'status-badge error';
             card.classList.add('error');
+
+            let evalHtml = '';
+            if (data.evaluated_candidates && data.evaluated_candidates.length > 0) {
+                evalHtml = `
+                    <table class="candidates-table" style="margin-top: 1rem;">
+                        <thead>
+                            <tr><th>#</th><th>Source</th><th>Similarity</th><th>Tier</th></tr>
+                        </thead>
+                        <tbody>
+                            ${data.evaluated_candidates.map((c, i) => `
+                                <tr>
+                                    <td>${i + 1}</td>
+                                    <td>${escapeHtml(c.source || 'Unknown')}</td>
+                                    <td>${c.has_face ? (c.similarity * 100).toFixed(1) + '%' : 'No face'}</td>
+                                    <td>${c.confidence_tier}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            }
+
             body.innerHTML = `
                 <div class="verification-badge failed">
-                    ✗ NO MATCH
+                    NO MATCH
                 </div>
                 <p class="data-value error">No candidate passed verification threshold</p>
+                ${evalHtml}
             `;
         }
     }
 
     function displayBlockchain(data) {
-        const status = document.getElementById('status-blockchain');
         const body = document.getElementById('body-blockchain');
         const card = document.getElementById('result-blockchain');
 
         if (data.status === 'skipped') {
-            status.textContent = 'Skipped';
-            status.className = 'status-badge skipped';
+            document.getElementById('status-blockchain').textContent = 'Skipped';
+            document.getElementById('status-blockchain').className = 'status-badge skipped';
             body.innerHTML = `<p class="data-value">Blockchain verification skipped</p>`;
             return;
         }
 
         if (data.status === 'success') {
-            status.textContent = 'Success';
-            status.className = 'status-badge success';
             card.classList.add('success');
 
             let tamperHtml = '';
             if (data.tamper_demo) {
                 tamperHtml = `
                     <div class="tamper-demo">
-                        <h4>🔍 Tamper Detection Demo</h4>
+                        <h4>Tamper Detection Demo</h4>
                         <p style="color: var(--text-secondary); margin-bottom: 1rem;">
                             Demonstrates why blockchain matters: modifying data changes the hash
                         </p>
@@ -423,7 +532,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                         </div>
                         <p style="margin-top: 1rem; color: var(--error); font-weight: 600;">
-                            ${data.tamper_demo.hashes_equal ? '⚠️ Hashes match (unexpected)' : '✓ Hashes differ - tamper detected!'}
+                            ${data.tamper_demo.hashes_equal ? 'Hashes match (unexpected)' : 'Hashes differ - tamper detected!'}
                         </p>
                     </div>
                 `;
@@ -431,7 +540,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             body.innerHTML = `
                 <div class="verification-badge ${data.verified ? 'verified' : 'failed'}">
-                    ${data.verified ? '✓ VERIFIED ON-CHAIN' : '✗ VERIFICATION FAILED'}
+                    ${data.verified ? 'VERIFIED ON-CHAIN' : 'VERIFICATION FAILED'}
                 </div>
                 <div class="blockchain-info">
                     <div class="blockchain-item">
@@ -462,7 +571,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="label">Explorer</div>
                         <div class="value">
                             <a href="${data.explorer_url}" target="_blank" rel="noopener" style="color: var(--primary); text-decoration: none;">
-                                View on PolygonScan →
+                                View on PolygonScan
                             </a>
                         </div>
                     </div>
@@ -470,8 +579,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 ${tamperHtml}
             `;
         } else {
-            status.textContent = 'Error';
-            status.className = 'status-badge error';
             card.classList.add('error');
             body.innerHTML = `<p class="data-value error">Blockchain verification failed</p>`;
         }

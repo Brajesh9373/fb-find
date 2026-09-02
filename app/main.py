@@ -8,6 +8,13 @@ import sys
 import traceback
 from pathlib import Path
 
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 from rich.console import Console
 
 from app import config
@@ -34,7 +41,18 @@ def build_parser() -> argparse.ArgumentParser:
         "--threshold",
         type=float,
         default=None,
-        help="Face match threshold (default from env FACE_MATCH_THRESHOLD)",
+        help="High confidence face match threshold (default from env FACE_MATCH_THRESHOLD)",
+    )
+    p.add_argument(
+        "--probable-threshold",
+        type=float,
+        default=None,
+        help="Probable face match threshold (default from env PROBABLE_MATCH_THRESHOLD)",
+    )
+    p.add_argument(
+        "--strict",
+        action="store_true",
+        help="Enforce strict high threshold only (disable probable match fallback)",
     )
     p.add_argument(
         "--skip-blockchain",
@@ -50,7 +68,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--max-verify",
         type=int,
         default=None,
-        help="Max candidates to run face verification on",
+        help="Max candidates to run face verification on (default from env MAX_CANDIDATES_TO_VERIFY)",
     )
     p.add_argument("--verbose", "-v", action="store_true")
     p.add_argument(
@@ -62,11 +80,20 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def run_pipeline(args: argparse.Namespace) -> int:
-    threshold = args.threshold if args.threshold is not None else config.FACE_MATCH_THRESHOLD
+    high_threshold = args.threshold if args.threshold is not None else config.FACE_MATCH_THRESHOLD
+    probable_threshold = (
+        args.probable_threshold
+        if args.probable_threshold is not None
+        else getattr(config, "PROBABLE_MATCH_THRESHOLD", 0.52)
+    )
+    allow_probable = not args.strict and getattr(config, "ALLOW_PROBABLE_MATCH", True)
     max_verify = args.max_verify or config.MAX_CANDIDATES_TO_VERIFY
 
     display.banner()
-    console.print(f"[dim]Input:[/] [white]{args.image}[/]   [dim]Threshold:[/] {threshold:.0%}")
+    tier_info = f"[dim]Thresholds:[/] High ≥ {high_threshold:.0%}" + (
+        f", Probable ≥ {probable_threshold:.0%}" if allow_probable else " (Strict mode)"
+    )
+    console.print(f"[dim]Input:[/] [white]{args.image}[/]   {tier_info}")
     console.print()
 
     # ── [1/5] Detect face ───────────────────────────────────────────
@@ -107,7 +134,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
     display.step(3, 5, "Searching web (Google Lens via SerpApi) ...")
 
     if args.mock_search:
-        candidates = _mock_candidates()
+        candidates = _mock_candidates(args.image)
         display.info("[yellow]MOCK SEARCH enabled — using synthetic results[/]")
     else:
         searcher = GoogleLensSearcher()
@@ -133,44 +160,86 @@ def run_pipeline(args: argparse.Namespace) -> int:
     display.candidates_table(ranked)
 
     # ── [4/5] Verify candidates ─────────────────────────────────────
-    display.step(4, 5, f"Verifying candidates (top {max_verify}) ...")
+    display.step(4, 5, f"Verifying candidates (evaluating top {max_verify}) ...")
+
+    from app.face.similarity import get_confidence_tier
 
     matched: dict | None = None
     matched_face = None
     matched_similarity: float = 0.0
+    matched_tier: str = "UNMATCHED"
 
     to_verify = ranked[:max_verify]
+    evaluated_list: list[dict] = []
+    best_probable_candidate = None
 
     for idx, cand in enumerate(to_verify, 1):
         url = cand.get("url", "")
         source = cand.get("source", "") or url
         console.print(f"\n      [white]Candidate #{idx}[/]  [cyan]{source}[/]  [dim]{url[:60]}[/]")
 
-        face, img_bytes = extract_face_from_candidate(cand, detector)
+        # Multi-face scan enabled by passing query_emb
+        face, img_bytes = extract_face_from_candidate(cand, detector, query_emb=query_emb)
         if face is None:
-            display.info("No face found in candidate image — skipping")
+            display.info("No face found in candidate image(s) — skipping")
+            evaluated_list.append({
+                "candidate": cand,
+                "similarity": 0.0,
+                "confidence_tier": "UNMATCHED",
+                "has_face": False,
+            })
             continue
 
         sim = cosine_similarity(query_emb, face.embedding)
-        console.print(f"      Similarity: [yellow]{sim*100:.1f}%[/]  (threshold {threshold*100:.0f}%)")
+        tier = get_confidence_tier(sim, high_threshold=high_threshold, probable_threshold=probable_threshold)
+        evaluated_list.append({
+            "candidate": cand,
+            "face": face,
+            "img_bytes": img_bytes,
+            "similarity": sim,
+            "confidence_tier": tier,
+            "has_face": True,
+        })
 
-        if sim >= threshold:
-            display.success(f"MATCH ✓  ({sim*100:.1f}% ≥ {threshold*100:.0f}%)")
+        if tier == "HIGH":
+            display.success(f"HIGH MATCH ✓  ({sim*100:.1f}% ≥ {high_threshold*100:.0f}%)")
             matched = cand
             matched_face = face
             matched_similarity = sim
+            matched_tier = "HIGH"
             break
+        elif tier == "PROBABLE":
+            display.warning(f"PROBABLE MATCH  ({sim*100:.1f}% in [{probable_threshold*100:.0f}%, {high_threshold*100:.0f}%))")
+            if best_probable_candidate is None or sim > best_probable_candidate["similarity"]:
+                best_probable_candidate = {
+                    "candidate": cand,
+                    "face": face,
+                    "similarity": sim,
+                    "tier": "PROBABLE",
+                }
         else:
-            display.info(f"No match ({sim*100:.1f}% < {threshold*100:.0f}%)")
+            display.info(f"No match ({sim*100:.1f}% < {probable_threshold*100:.0f}%)")
+
+    # If no HIGH match was found, but a PROBABLE match exists and allowed
+    if matched is None and allow_probable and best_probable_candidate is not None:
+        matched = best_probable_candidate["candidate"]
+        matched_face = best_probable_candidate["face"]
+        matched_similarity = best_probable_candidate["similarity"]
+        matched_tier = "PROBABLE"
+        console.print(f"\n      [yellow]Proceeding with highest PROBABLE match: {matched_similarity*100:.1f}%[/]")
 
     if matched is None:
-        display.error(f"No candidate passed verification at threshold {threshold:.0%}")
-        console.print("\n[dim]Tip: try lowering --threshold or use a different image.[/]")
+        display.error(f"No candidate passed verification (High: ≥{high_threshold:.0%}" + (f", Probable: ≥{probable_threshold:.0%})" if allow_probable else ")"))
+        console.print()
+        display.top_matches_table(evaluated_list)
+        console.print("\n[dim]Tips to enhance verification:[/]")
+        console.print("  • Try lowering threshold: [cyan]--threshold 0.50[/]")
+        console.print(f"  • Increase verification depth: [cyan]--max-verify {min(len(ranked), 25)}[/]")
+        console.print("  • Provide an image with clearer forward-facing lighting.")
         return 1
 
     # ── Match confirmed ─────────────────────────────────────────────
     platform = matched.get("source") or matched.get("url", "")
-    # Clean platform label
     from urllib.parse import urlparse as _up
 
     try:
@@ -178,7 +247,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
     except Exception:
         plat_label = platform
 
-    display.match_box(plat_label, matched_similarity, matched["url"])
+    display.match_box(plat_label, matched_similarity, matched["url"], confidence_tier=matched_tier)
 
     # ── [5/5] Content fingerprint + blockchain ──────────────────────
     display.step(5, 5, "Generating SHA-256 fingerprint ...")
@@ -290,15 +359,15 @@ def _tamper_demo(original_payload: dict, registry=None):
         console.print("  → [bold red]TAMPER DETECTED ❌  Hashes differ[/]")
 
 
-def _mock_candidates() -> list[dict]:
+def _mock_candidates(input_image_path: str = "samples/virat-kohli-photo-4k.webp") -> list[dict]:
     """Synthetic results for offline testing (no network)."""
     return [
         {
             "title": "Technology Conference 2026 — Instagram",
             "url": "https://www.instagram.com/p/mock_tech_conf_2026/",
             "source": "instagram.com",
-            "thumbnail": "https://via.placeholder.com/400",
-            "image_url": "https://via.placeholder.com/400",
+            "thumbnail": input_image_path,
+            "image_url": input_image_path,
             "position": 1,
         },
         {

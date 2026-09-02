@@ -83,15 +83,15 @@ def load_abi() -> list:
 
 
 def get_w3(rpc_url: str | None = None) -> Web3:
-    # Try primary, then public fallbacks — all free
+    # Try custom/primary, then public fallbacks — all free
     candidates = []
     if rpc_url:
         candidates.append(rpc_url)
-    else:
+    if config.POLYGON_RPC_URL not in candidates:
         candidates.append(config.POLYGON_RPC_URL)
-        for fb in config.RPC_FALLBACKS:
-            if fb not in candidates:
-                candidates.append(fb)
+    for fb in config.RPC_FALLBACKS:
+        if fb not in candidates:
+            candidates.append(fb)
 
     last_err: Exception | None = None
     for url in candidates:

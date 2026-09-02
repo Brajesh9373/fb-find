@@ -37,3 +37,23 @@ def test_cosine_zero_vector():
     a = np.zeros(512)
     b = np.random.randn(512)
     assert cosine_similarity(a, b) == pytest.approx(0.0)
+
+
+def test_confidence_tiers():
+    from app.face.similarity import (
+        CONFIDENCE_HIGH,
+        CONFIDENCE_PROBABLE,
+        CONFIDENCE_UNMATCHED,
+        get_confidence_tier,
+        is_probable_match,
+    )
+
+    assert get_confidence_tier(0.85, high_threshold=0.65, probable_threshold=0.52) == CONFIDENCE_HIGH
+    assert get_confidence_tier(0.65, high_threshold=0.65, probable_threshold=0.52) == CONFIDENCE_HIGH
+    assert get_confidence_tier(0.58, high_threshold=0.65, probable_threshold=0.52) == CONFIDENCE_PROBABLE
+    assert get_confidence_tier(0.52, high_threshold=0.65, probable_threshold=0.52) == CONFIDENCE_PROBABLE
+    assert get_confidence_tier(0.48, high_threshold=0.65, probable_threshold=0.52) == CONFIDENCE_UNMATCHED
+
+    assert is_probable_match(0.58, probable_threshold=0.52) is True
+    assert is_probable_match(0.45, probable_threshold=0.52) is False
+

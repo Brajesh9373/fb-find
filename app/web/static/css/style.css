@@ -657,3 +657,55 @@ body {
 .result-card:nth-child(3) { animation-delay: 0.2s; }
 .result-card:nth-child(4) { animation-delay: 0.3s; }
 .result-card:nth-child(5) { animation-delay: 0.4s; }
+
+/* Live Log Output */
+.log-container {
+    margin-top: 1.5rem;
+    background: #0d1117;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+}
+
+.log-header {
+    padding: 0.6rem 1rem;
+    background: var(--surface-light);
+    border-bottom: 1px solid var(--border);
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.log-output {
+    padding: 1rem;
+    max-height: 250px;
+    overflow-y: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 0.82rem;
+    line-height: 1.6;
+}
+
+.log-line {
+    padding: 2px 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.log-info { color: var(--primary); }
+.log-progress { color: var(--text-secondary); }
+.log-success { color: var(--success); }
+.log-error { color: var(--error); }
+
+/* Running status badge */
+.status-badge.running {
+    background: rgba(0, 188, 212, 0.2);
+    color: var(--primary);
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}

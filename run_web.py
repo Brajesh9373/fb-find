@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
 """Run the Face → Web → Blockchain web application."""
 
+import logging
 import os
 import sys
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%H:%M:%S",
+)
 
 from app.web import create_app
 

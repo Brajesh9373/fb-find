@@ -43,6 +43,10 @@
                     <input type="checkbox" id="skip-blockchain">
                     <span>Skip Blockchain</span>
                 </label>
+                <label class="option">
+                    <input type="checkbox" id="mock-search">
+                    <span>Mock Search (no API key)</span>
+                </label>
             </div>
             <button class="btn btn-primary" id="analyze-btn" disabled>
                 <span class="btn-text">Analyze Image</span>
@@ -77,6 +81,10 @@
                     <div class="step-icon">5</div>
                     <div class="step-label">Blockchain</div>
                 </div>
+            </div>
+            <div class="log-container" id="log-container">
+                <div class="log-header">Live Progress</div>
+                <div class="log-output" id="log-output"></div>
             </div>
         </section>
 

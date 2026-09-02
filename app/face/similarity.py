@@ -21,8 +21,45 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.dot(a, b) / denom)
 
 
+CONFIDENCE_HIGH = "HIGH"
+CONFIDENCE_PROBABLE = "PROBABLE"
+CONFIDENCE_UNMATCHED = "UNMATCHED"
+
+
+def get_confidence_tier(
+    similarity: float,
+    high_threshold: float | None = None,
+    probable_threshold: float | None = None,
+) -> str:
+    """Classify cosine similarity into confidence bands: HIGH, PROBABLE, or UNMATCHED."""
+    high = high_threshold if high_threshold is not None else config.FACE_MATCH_THRESHOLD
+    probable = (
+        probable_threshold
+        if probable_threshold is not None
+        else getattr(config, "PROBABLE_MATCH_THRESHOLD", 0.52)
+    )
+    if similarity >= high:
+        return CONFIDENCE_HIGH
+    elif similarity >= probable:
+        return CONFIDENCE_PROBABLE
+    return CONFIDENCE_UNMATCHED
+
+
 def is_match(
     similarity: float, threshold: float | None = None
 ) -> bool:
+    """Check if similarity meets the given or default threshold."""
     threshold = threshold if threshold is not None else config.FACE_MATCH_THRESHOLD
     return similarity >= threshold
+
+
+def is_probable_match(
+    similarity: float, probable_threshold: float | None = None
+) -> bool:
+    """Check if similarity falls within the probable match confidence band."""
+    probable = (
+        probable_threshold
+        if probable_threshold is not None
+        else getattr(config, "PROBABLE_MATCH_THRESHOLD", 0.52)
+    )
+    return similarity >= probable

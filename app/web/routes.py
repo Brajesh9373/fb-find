@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import os
-import tempfile
 import uuid
 
-from flask import Blueprint, jsonify, render_template, request
+from flask import Blueprint, Response, current_app, jsonify, render_template, send_from_directory, request
 
-from app.web.pipeline import run_pipeline
+from app.web.pipeline import run_pipeline_stream
 
 main_bp = Blueprint("main", __name__)
 
@@ -25,9 +24,15 @@ def health():
     return jsonify({"status": "ok", "service": "face-detection"})
 
 
+@main_bp.route("/uploads/<path:filename>")
+def serve_upload(filename):
+    """Serve an uploaded image."""
+    return send_from_directory(current_app.config["UPLOAD_FOLDER"], filename)
+
+
 @main_bp.route("/api/analyze", methods=["POST"])
 def analyze():
-    """Accept image upload and run the pipeline."""
+    """Accept image upload and run the pipeline via SSE streaming."""
     if "image" not in request.files:
         return jsonify({"success": False, "error": "No image file provided"}), 400
 
@@ -44,44 +49,45 @@ def analyze():
             "error": f"Invalid file type: {ext}. Allowed: {', '.join(allowed_extensions)}",
         }), 400
 
-    # Save to temp file
-    upload_dir = tempfile.mkdtemp(prefix="face-detection-")
+    # Save to persistent upload directory
+    upload_dir = current_app.config["UPLOAD_FOLDER"]
     filename = f"{uuid.uuid4().hex}{ext}"
     filepath = os.path.join(upload_dir, filename)
     file.save(filepath)
 
-    try:
-        # Get optional parameters
-        threshold = request.form.get("threshold")
-        if threshold:
-            try:
-                threshold = float(threshold)
-            except ValueError:
-                threshold = None
-
-        skip_blockchain = request.form.get("skip_blockchain", "false").lower() == "true"
-        tamper_demo = request.form.get("tamper_demo", "true").lower() == "true"
-
-        # Run pipeline
-        result = run_pipeline(
-            image_path=filepath,
-            threshold=threshold,
-            skip_blockchain=skip_blockchain,
-            tamper_demo=tamper_demo,
-        )
-
-        return jsonify(result)
-
-    except Exception as exc:
-        return jsonify({
-            "success": False,
-            "error": f"Pipeline error: {exc}",
-        }), 500
-
-    finally:
-        # Cleanup temp file
+    # Get optional parameters
+    threshold = request.form.get("threshold")
+    if threshold:
         try:
-            os.unlink(filepath)
-            os.rmdir(upload_dir)
-        except OSError:
-            pass
+            threshold = float(threshold)
+        except ValueError:
+            threshold = None
+
+    skip_blockchain = request.form.get("skip_blockchain", "false").lower() == "true"
+    tamper_demo = request.form.get("tamper_demo", "true").lower() == "true"
+    mock_search = request.form.get("mock_search", "false").lower() == "true"
+
+    def generate():
+        try:
+            yield from run_pipeline_stream(
+                image_path=filepath,
+                threshold=threshold,
+                skip_blockchain=skip_blockchain,
+                tamper_demo=tamper_demo,
+                mock_search=mock_search,
+            )
+        finally:
+            try:
+                os.unlink(filepath)
+            except OSError:
+                pass
+
+    return Response(
+        generate(),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )
