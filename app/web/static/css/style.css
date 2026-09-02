@@ -458,6 +458,82 @@ body {
     color: var(--primary);
 }
 
+/* Candidates Image Grid */
+.candidates-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.candidate-card {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.2s, transform 0.2s;
+    background: var(--surface);
+}
+
+.candidate-card:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+}
+
+.candidate-img-wrap {
+    width: 100%;
+    aspect-ratio: 4/3;
+    background: var(--surface-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.candidate-img-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.candidate-img-fallback {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: var(--text-secondary);
+    background: var(--surface-light);
+}
+
+.candidate-info {
+    padding: 0.5rem 0.6rem;
+}
+
+.candidate-source {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--primary);
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.candidate-title {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
 /* Blockchain Section */
 .blockchain-info {
     display: grid;
@@ -621,6 +697,10 @@ body {
 
     .data-grid {
         grid-template-columns: 1fr;
+    }
+
+    .candidates-grid {
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
     }
 
     .blockchain-info {

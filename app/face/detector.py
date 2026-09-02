@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import tempfile
 from dataclasses import dataclass, field
 
 import cv2
@@ -123,20 +124,29 @@ class FaceDetector:
 
         raw_faces = self._app.get(img)
         faces: list[FaceInfo] = []
+        img_h, img_w = img.shape[:2]
+        min_face_area = (img_w * img_h) * 0.002  # face must be at least 0.2% of image
+
         for f in raw_faces:
             bbox = [int(v) for v in f.bbox]  # type: ignore[attr-defined]
             # InsightFace det_score
             conf = float(getattr(f, "det_score", 0.0))
+
+            # Filter: skip low-confidence detections (likely objects, not faces)
+            if conf < 0.4:
+                continue
+
+            # Filter: skip tiny bounding boxes (noise / false positives)
+            bbox_area = (bbox[2] - bbox[0]) * (bbox[3] - bbox[1])
+            if bbox_area < min_face_area:
+                continue
+
             emb: np.ndarray = f.normed_embedding  # already L2-normalised by InsightFace
-            # need the *raw* embedding for correct pipeline (we re-normalise explicitly)
-            # but normed_embedding is fine; keep both pathways consistent
-            # Fall back to 'embedding' if normed not available
             if emb is None:
                 emb = getattr(f, "embedding", np.zeros(512, dtype=np.float32))
             kps = getattr(f, "kps", None)
             age = getattr(f, "age", None)
             gender = getattr(f, "gender", None)
-            # Re-normalise explicitly to avoid double-norm issues
             faces.append(
                 FaceInfo(
                     bbox=bbox,
@@ -175,3 +185,35 @@ class FaceDetector:
         if not faces:
             return None
         return faces[0]
+
+
+def crop_face(image_path: str, face: FaceInfo, padding: float = 0.5) -> str:
+    """Crop the face region from an image and save to a temp file.
+
+    Adds *padding* (fraction of bbox size) around the face so Google Lens
+    sees context but not the whole body/clothing.
+
+    Returns the path to the cropped temp file (caller should clean up).
+    """
+    img = cv2.imread(image_path)
+    if img is None:
+        return image_path
+
+    h, w = img.shape[:2]
+    x1, y1, x2, y2 = face.bbox
+    bw, bh = x2 - x1, y2 - y1
+
+    pad_x = int(bw * padding)
+    pad_y = int(bh * padding)
+
+    cx1 = max(0, x1 - pad_x)
+    cy1 = max(0, y1 - pad_y)
+    cx2 = min(w, x2 + pad_x)
+    cy2 = min(h, y2 + pad_y)
+
+    cropped = img[cy1:cy2, cx1:cx2]
+
+    ext = os.path.splitext(image_path)[1].lower() or ".jpg"
+    tmp = tempfile.NamedTemporaryFile(suffix=ext, prefix="face-crop-", delete=False)
+    cv2.imwrite(tmp.name, cropped)
+    return tmp.name

@@ -10,11 +10,13 @@ import tempfile
 from typing import Any, Generator
 from urllib.parse import urlparse
 
+import cv2
+
 from app import config
 from app.content.canonicalizer import build_canonical_payload
 from app.content.extractor import extract_face_from_candidate
 from app.content.hashing import fingerprint_canonical
-from app.face.detector import FaceDetector
+from app.face.detector import FaceDetector, crop_face
 from app.face.embedder import normalize as norm_emb
 from app.face.similarity import cosine_similarity
 from app.search.lens import GoogleLensSearcher
@@ -108,6 +110,25 @@ def run_pipeline_stream(
             return
 
         best = faces[0]
+
+        # Crop the face and overwrite the uploaded file so the rest of the
+        # pipeline (search, verification, display) works on the face only.
+        try:
+            img = cv2.imread(image_path)
+            if img is not None:
+                h, w = img.shape[:2]
+                x1, y1, x2, y2 = best.bbox
+                bw, bh = x2 - x1, y2 - y1
+                # Tight crop: minimal padding so Google Lens sees ONLY the face
+                pad_x, pad_y = int(bw * 0.15), int(bh * 0.2)
+                cx1, cy1 = max(0, x1 - pad_x), max(0, y1 - pad_y)
+                cx2, cy2 = min(w, x2 + pad_x), min(h, y2 + pad_y)
+                cropped = img[cy1:cy2, cx1:cx2]
+                cv2.imwrite(image_path, cropped)
+                logger.info("Cropped face region: (%d,%d)-(%d,%d) → saved to %s", cx1, cy1, cx2, cy2, image_path)
+        except Exception as crop_exc:
+            logger.warning("Face crop failed, using original image: %s", crop_exc)
+
         face_data = {
             "status": "success",
             "bbox": [int(v) for v in best.bbox],
@@ -148,7 +169,7 @@ def run_pipeline_stream(
             yield _sse("step_progress", {"step": "web_search", "message": "Using mock search results (offline mode)..."})
             candidates = _mock_candidates(image_path)
         else:
-            yield _sse("step_progress", {"step": "web_search", "message": "Uploading image to search engine..."})
+            yield _sse("step_progress", {"step": "web_search", "message": "Uploading face to search engine..."})
             searcher = GoogleLensSearcher()
             candidates = searcher.search(image_path)
 

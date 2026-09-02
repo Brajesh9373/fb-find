@@ -22,7 +22,7 @@ from app.cli import display
 from app.content.canonicalizer import build_canonical_payload
 from app.content.extractor import extract_face_from_candidate
 from app.content.hashing import fingerprint_canonical
-from app.face.detector import FaceDetector
+from app.face.detector import FaceDetector, crop_face
 from app.face.similarity import cosine_similarity
 from app.search.lens import GoogleLensSearcher
 from app.search.ranking import is_social, rank_candidates
@@ -122,6 +122,25 @@ def run_pipeline(args: argparse.Namespace) -> int:
     display.success(f"Face detected  bbox={best.bbox}  confidence={best.confidence:.2%}")
     display.info(f"Embedding dim={best.embedding.shape[0]}")
 
+    # Crop face and overwrite original so the rest of the pipeline
+    # (search, verification, display) works on the face only.
+    try:
+        import cv2 as _cv2
+        img = _cv2.imread(args.image)
+        if img is not None:
+            h, w = img.shape[:2]
+            x1, y1, x2, y2 = best.bbox
+            bw, bh = x2 - x1, y2 - y1
+            # Tight crop: minimal padding so search sees ONLY the face
+            pad_x, pad_y = int(bw * 0.15), int(bh * 0.2)
+            cx1, cy1 = max(0, x1 - pad_x), max(0, y1 - pad_y)
+            cx2, cy2 = min(w, x2 + pad_x), min(h, y2 + pad_y)
+            cropped = img[cy1:cy2, cx1:cx2]
+            _cv2.imwrite(args.image, cropped)
+            display.info(f"Cropped face region ({cx1},{cy1})-({cx2},{cy2})")
+    except Exception as crop_exc:
+        display.warning(f"Face crop failed, using original: {crop_exc}")
+
     # ── [2/5] Embedding ─────────────────────────────────────────────
     display.step(2, 5, "Generating face embedding ...")
     # Already produced by detector; just normalise explicitly
@@ -144,7 +163,6 @@ def run_pipeline(args: argparse.Namespace) -> int:
             display.error(f"Search failed: {exc}")
             if args.verbose:
                 traceback.print_exc()
-            # Non-fatal — allow pipeline to show error gracefully
             candidates = []
 
     if not candidates:

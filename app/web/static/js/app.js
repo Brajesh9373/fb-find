@@ -367,26 +367,22 @@ document.addEventListener('DOMContentLoaded', () => {
             let candidatesHtml = '';
             if (data.candidates && data.candidates.length > 0) {
                 candidatesHtml = `
-                    <table class="candidates-table">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Source</th>
-                                <th>Title</th>
-                                <th>Type</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${data.candidates.slice(0, 8).map((c, i) => `
-                                <tr>
-                                    <td>${i + 1}</td>
-                                    <td>${escapeHtml(c.source || 'Unknown')}</td>
-                                    <td>${escapeHtml((c.title || '').substring(0, 50))}${c.title && c.title.length > 50 ? '...' : ''}</td>
-                                    <td>${c.is_social ? '<span class="social-badge">Social</span>' : 'Web'}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
+                    <div class="candidates-grid">
+                        ${data.candidates.slice(0, 12).map((c, i) => `
+                            <a href="${escapeHtml(c.url)}" target="_blank" rel="noopener" class="candidate-card">
+                                <div class="candidate-img-wrap">
+                                    ${c.thumbnail
+                                        ? `<img src="${escapeHtml(c.thumbnail)}" alt="${escapeHtml(c.title || '')}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="candidate-img-fallback" style="display:none">📷</div>`
+                                        : `<div class="candidate-img-fallback">📷</div>`
+                                    }
+                                </div>
+                                <div class="candidate-info">
+                                    <div class="candidate-source">${escapeHtml(c.source || 'Unknown')}${c.is_social ? ' <span class="social-badge">Social</span>' : ''}</div>
+                                    <div class="candidate-title">${escapeHtml((c.title || '').substring(0, 60))}${c.title && c.title.length > 60 ? '...' : ''}</div>
+                                </div>
+                            </a>
+                        `).join('')}
+                    </div>
                 `;
             }
 
