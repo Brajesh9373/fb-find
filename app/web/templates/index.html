@@ -4,10 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Face → Web → Blockchain</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;1,600&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+    <div class="bg-video-wrap" aria-hidden="true">
+        <video class="bg-video" autoplay muted loop playsinline preload="auto" poster="">
+            <source src="{{ url_for('static', filename='media/coastal.mp4') }}" type="video/mp4">
+        </video>
+        <div class="bg-overlay"></div>
+        <div class="bg-vignette"></div>
+    </div>
     <div class="container">
         <!-- Header -->
         <header class="header">
@@ -33,20 +42,6 @@
             <div class="upload-preview" id="upload-preview" style="display: none;">
                 <img id="preview-image" src="" alt="Preview">
                 <button class="btn btn-secondary" id="change-image">Change Image</button>
-            </div>
-            <div class="options">
-                <label class="option">
-                    <input type="checkbox" id="tamper-demo" checked>
-                    <span>Show Tamper Demo</span>
-                </label>
-                <label class="option">
-                    <input type="checkbox" id="skip-blockchain">
-                    <span>Skip Blockchain</span>
-                </label>
-                <label class="option">
-                    <input type="checkbox" id="mock-search">
-                    <span>Mock Search (no API key)</span>
-                </label>
             </div>
             <button class="btn btn-primary" id="analyze-btn" disabled>
                 <span class="btn-text">Analyze Image</span>

@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.onload = (e) => {
             previewImage.src = e.target.result;
             uploadArea.style.display = 'none';
-            uploadPreview.style.display = 'block';
+            uploadPreview.style.display = 'flex';
             analyzeBtn.disabled = false;
         };
         reader.readAsDataURL(file);
@@ -109,9 +109,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const formData = new FormData();
         formData.append('image', selectedFile);
-        formData.append('tamper_demo', document.getElementById('tamper-demo')?.checked ?? false);
-        formData.append('skip_blockchain', document.getElementById('skip-blockchain')?.checked ?? false);
-        formData.append('mock_search', document.getElementById('mock-search')?.checked ?? false);
+        formData.append('tamper_demo', 'true');
+        formData.append('skip_blockchain', 'false');
+        formData.append('mock_search', 'false');
 
         try {
             const response = await fetch('/api/analyze', { method: 'POST', body: formData });
@@ -297,10 +297,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="data-item" style="grid-column: 1 / -1;">
                         <div class="data-label">Image Link</div>
                         <div class="data-value">
-                            <a href="${fullUrl}" target="_blank" rel="noopener" style="color: var(--primary); text-decoration: none; word-break: break-all;">
+                            <a href="${fullUrl}" target="_blank" rel="noopener" style="color: var(--pink); text-decoration: none; word-break: break-all;">
                                 ${fullUrl}
                             </a>
-                            <button onclick="navigator.clipboard.writeText('${fullUrl}')" style="margin-left: 8px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text); cursor: pointer; font-size: 0.75rem;">Copy</button>
+                            <button onclick="navigator.clipboard.writeText('${fullUrl}')" style="margin-left: 8px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface-input); color: var(--green-dark); cursor: pointer; font-size: 0.72rem; font-family: var(--font-mono); font-weight: 700;">Copy</button>
                         </div>
                     </div>
                 `;
@@ -453,7 +453,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="data-item">
                         <div class="data-label">URL</div>
                         <div class="data-value">
-                            <a href="${escapeHtml(data.url)}" target="_blank" rel="noopener" style="color: var(--primary); text-decoration: none;">
+                            <a href="${escapeHtml(data.url)}" target="_blank" rel="noopener" style="color: var(--pink); text-decoration: none;">
                                 ${escapeHtml((data.url || '').substring(0, 50))}...
                             </a>
                         </div>
@@ -514,7 +514,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 tamperHtml = `
                     <div class="tamper-demo">
                         <h4>Tamper Detection Demo</h4>
-                        <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+                        <p style="color: var(--muted); margin-bottom: 1rem;">
                             Demonstrates why blockchain matters: modifying data changes the hash
                         </p>
                         <div class="tamper-comparison">
@@ -527,7 +527,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <div class="hash">${data.tamper_demo.tampered_hash}</div>
                             </div>
                         </div>
-                        <p style="margin-top: 1rem; color: var(--error); font-weight: 600;">
+                        <p style="margin-top: 1rem; color: var(--pink); font-weight: 600;">
                             ${data.tamper_demo.hashes_equal ? 'Hashes match (unexpected)' : 'Hashes differ - tamper detected!'}
                         </p>
                     </div>
@@ -550,7 +550,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="blockchain-item">
                         <div class="label">Transaction</div>
                         <div class="value">
-                            <a href="${data.explorer_url}" target="_blank" rel="noopener" style="color: var(--primary); text-decoration: none;">
+                            <a href="${data.explorer_url}" target="_blank" rel="noopener" style="color: var(--pink); text-decoration: none;">
                                 ${data.tx_hash.substring(0, 20)}...
                             </a>
                         </div>
@@ -566,7 +566,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="blockchain-item">
                         <div class="label">Explorer</div>
                         <div class="value">
-                            <a href="${data.explorer_url}" target="_blank" rel="noopener" style="color: var(--primary); text-decoration: none;">
+                            <a href="${data.explorer_url}" target="_blank" rel="noopener" style="color: var(--pink); text-decoration: none;">
                                 View on PolygonScan
                             </a>
                         </div>
