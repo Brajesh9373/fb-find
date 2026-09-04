@@ -3,154 +3,249 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Face → Web → Blockchain</title>
+    <meta name="theme-color" content="#f5f0e6">
+    <title>HH GOA 2026 — Face ID Verification</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;1,600&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <div class="bg-video-wrap" aria-hidden="true">
-        <video class="bg-video" autoplay muted loop playsinline preload="auto" poster="">
-            <source src="{{ url_for('static', filename='media/coastal.mp4') }}" type="video/mp4">
-        </video>
-        <div class="bg-overlay"></div>
-        <div class="bg-vignette"></div>
-    </div>
-    <div class="container">
-        <!-- Header -->
-        <header class="header">
-            <h1 class="title">
-                <span class="title-icon">🔍</span>
-                Face → Web → Blockchain
-            </h1>
-            <p class="subtitle">Face Identification → Web Discovery → On-Chain Verification</p>
-            <p class="description">Upload a face image to identify, search the web, and verify on Polygon blockchain</p>
-        </header>
+    <div class="site-noise" aria-hidden="true"></div>
+    <div class="coast-glow coast-glow-a" aria-hidden="true"></div>
+    <div class="coast-glow coast-glow-b" aria-hidden="true"></div>
 
-        <!-- Upload Section -->
-        <section class="upload-section" id="upload-section">
-            <div class="upload-area" id="upload-area">
-                <div class="upload-content">
-                    <div class="upload-icon">📸</div>
-                    <h3>Drop your image here</h3>
-                    <p>or click to browse files</p>
-                    <p class="upload-hint">Supports: JPG, PNG, WebP, BMP, GIF (max 16MB)</p>
-                </div>
-                <input type="file" id="file-input" accept="image/*" hidden>
-            </div>
-            <div class="upload-preview" id="upload-preview" style="display: none;">
-                <img id="preview-image" src="" alt="Preview">
-                <button class="btn btn-secondary" id="change-image">Change Image</button>
-            </div>
-            <button class="btn btn-primary" id="analyze-btn" disabled>
-                <span class="btn-text">Analyze Image</span>
-                <span class="btn-loader" style="display: none;">Analyzing...</span>
-            </button>
-        </section>
+    <header class="topbar">
+        <a class="brand" href="#top" aria-label="HH Goa 2026 home">
+            <span class="brand-mark" aria-hidden="true">
+                <span></span><span></span><span></span>
+            </span>
+            <span class="brand-copy">
+                <strong>HH GOA</strong>
+                <small>2026 / OPEN TRIALS</small>
+            </span>
+        </a>
+        <div class="topbar-center">GOA, INDIA&nbsp;&nbsp;·&nbsp;&nbsp;28—31 OCT 2026</div>
+        <a class="topbar-chip" href="https://hhgoa.com/" target="_blank" rel="noopener">LESS NOISE. MORE SIGNAL ↗</a>
+    </header>
 
-        <!-- Progress Section -->
-        <section class="progress-section" id="progress-section" style="display: none;">
-            <div class="progress-steps">
-                <div class="step" id="step-1">
-                    <div class="step-icon">1</div>
-                    <div class="step-label">Face Detection</div>
-                </div>
-                <div class="step-line"></div>
-                <div class="step" id="step-2">
-                    <div class="step-icon">2</div>
-                    <div class="step-label">Embedding</div>
-                </div>
-                <div class="step-line"></div>
-                <div class="step" id="step-3">
-                    <div class="step-icon">3</div>
-                    <div class="step-label">Web Search</div>
-                </div>
-                <div class="step-line"></div>
-                <div class="step" id="step-4">
-                    <div class="step-icon">4</div>
-                    <div class="step-label">Verification</div>
-                </div>
-                <div class="step-line"></div>
-                <div class="step" id="step-5">
-                    <div class="step-icon">5</div>
-                    <div class="step-label">Blockchain</div>
+    <main class="page-shell" id="top">
+        <section class="hero" aria-labelledby="page-title">
+            <div class="hero-copy">
+                <div class="eyebrow"><span class="eyebrow-dot"></span>TASK #3 / SIGNAL CHECK</div>
+                <h1 id="page-title">FIND THE<br><em>REAL SIGNAL.</em></h1>
+                <p class="hero-lede">Detect a face. Find its real web footprint. Lock the verified match into a tamper-evident record.</p>
+                <div class="hero-meta">
+                    <span>FACE → WEB → CHAIN</span>
+                    <span>PIPELINE ONLINE</span>
                 </div>
             </div>
-            <div class="log-container" id="log-container">
-                <div class="log-header">Live Progress</div>
-                <div class="log-output" id="log-output"></div>
+            <div class="hero-seal" aria-hidden="true">
+                <div class="seal-ring seal-ring-outer"></div>
+                <div class="seal-ring seal-ring-inner"></div>
+                <div class="seal-cross"></div>
+                <div class="seal-label seal-label-top">SIGNAL / ID</div>
+                <div class="seal-label seal-label-bottom">HHG • 2026</div>
             </div>
         </section>
 
-        <!-- Results Section -->
-        <section class="results-section" id="results-section" style="display: none;">
-            <!-- Face Detection Result -->
-            <div class="result-card" id="result-face-detection">
-                <div class="card-header">
-                    <h3>👤 Face Detection</h3>
-                    <span class="status-badge" id="status-face-detection">Pending</span>
+        <section class="studio-grid" aria-label="Verification studio">
+            <aside class="studio-rail">
+                <div class="rail-heading">HOW IT MOVES</div>
+                <div class="rail-track">
+                    <div class="rail-line"></div>
+                    <div class="rail-step"><b>01</b><span>DETECT</span><small>Find the face in-frame.</small></div>
+                    <div class="rail-step"><b>02</b><span>ENCODE</span><small>Build its embedding.</small></div>
+                    <div class="rail-step"><b>03</b><span>SEARCH</span><small>Locate the real post.</small></div>
+                    <div class="rail-step"><b>04</b><span>VERIFY</span><small>Score the candidate.</small></div>
+                    <div class="rail-step"><b>05</b><span>ANCHOR</span><small>Write the record on-chain.</small></div>
                 </div>
-                <div class="card-body" id="body-face-detection">
-                    <div class="loading-spinner"></div>
-                </div>
-            </div>
+                <div class="rail-note">NO HARDCODED RESULTS.<br>ONE REAL SIGNAL.</div>
+            </aside>
 
-            <!-- Embedding Result -->
-            <div class="result-card" id="result-embedding">
-                <div class="card-header">
-                    <h3>🧬 Face Embedding</h3>
-                    <span class="status-badge" id="status-embedding">Pending</span>
-                </div>
-                <div class="card-body" id="body-embedding">
-                    <div class="loading-spinner"></div>
-                </div>
-            </div>
+            <div class="studio-main">
+                <section class="upload-card" id="upload-section">
+                    <div class="section-kicker">
+                        <span>01 / INPUT</span>
+                        <span class="live-pill"><i></i>READY</span>
+                    </div>
+                    <div class="upload-header">
+                        <div>
+                            <h2>Drop the source.</h2>
+                            <p>Use a clear photo containing one primary face.</p>
+                        </div>
+                        <div class="tiny-spec">JPG · PNG · WEBP<br>MAX 16 MB</div>
+                    </div>
 
-            <!-- Web Search Result -->
-            <div class="result-card" id="result-web-search">
-                <div class="card-header">
-                    <h3>🌐 Web Search</h3>
-                    <span class="status-badge" id="status-web-search">Pending</span>
-                </div>
-                <div class="card-body" id="body-web-search">
-                    <div class="loading-spinner"></div>
-                </div>
-            </div>
+                    <div class="upload-area" id="upload-area">
+                        <div class="upload-corner corner-tl"></div>
+                        <div class="upload-corner corner-tr"></div>
+                        <div class="upload-corner corner-bl"></div>
+                        <div class="upload-corner corner-br"></div>
+                        <div class="upload-content">
+                            <div class="upload-symbol" aria-hidden="true">+</div>
+                            <div class="upload-title">DROP IMAGE HERE</div>
+                            <div class="upload-subtitle">OR CLICK TO BROWSE</div>
+                            <div class="upload-hint">FACE SHOULD BE CLEAR · NO MANUAL CROP REQUIRED</div>
+                        </div>
+                        <input type="file" id="file-input" accept="image/*" hidden>
+                    </div>
 
-            <!-- Verification Result -->
-            <div class="result-card" id="result-verification">
-                <div class="card-header">
-                    <h3>✅ Face Verification</h3>
-                    <span class="status-badge" id="status-verification">Pending</span>
-                </div>
-                <div class="card-body" id="body-verification">
-                    <div class="loading-spinner"></div>
-                </div>
-            </div>
+                    <div class="upload-preview" id="upload-preview" style="display:none;">
+                        <div class="preview-frame">
+                            <span class="preview-tag">SOURCE IMAGE</span>
+                            <img id="preview-image" src="" alt="Selected source preview">
+                        </div>
+                        <button class="btn btn-secondary" id="change-image" type="button">Replace source</button>
+                    </div>
 
-            <!-- Blockchain Result -->
-            <div class="result-card" id="result-blockchain">
-                <div class="card-header">
-                    <h3>⛓️ Blockchain</h3>
-                    <span class="status-badge" id="status-blockchain">Pending</span>
-                </div>
-                <div class="card-body" id="body-blockchain">
-                    <div class="loading-spinner"></div>
-                </div>
+                    <div class="action-strip">
+                        <div class="action-caption">
+                            <span class="action-marker">*</span>
+                            <span>STACK SIGNAL READY</span>
+                        </div>
+                        <button class="btn btn-primary" id="analyze-btn" disabled type="button">
+                            <span class="btn-text">Run verification</span>
+                            <span class="btn-loader" style="display:none;">Pipeline running…</span>
+                            <span class="btn-arrow" aria-hidden="true">↗</span>
+                        </button>
+                    </div>
+                </section>
+
+                <section class="progress-section" id="progress-section" style="display:none;">
+                    <div class="section-kicker">
+                        <span>02 / LIVE PIPELINE</span>
+                        <span class="live-pill live-pill-running"><i></i>PROCESSING</span>
+                    </div>
+                    <div class="pipeline-headline">
+                        <div>
+                            <h2>Watch the signal move.</h2>
+                            <p>Each stage reports its own state as the pipeline advances.</p>
+                        </div>
+                        <span class="pipeline-id">HHG-T3 / LIVE</span>
+                    </div>
+
+                    <div class="progress-steps">
+                        <div class="step" id="step-1">
+                            <div class="step-icon">01</div>
+                            <div class="step-label">Face<br>Detection</div>
+                        </div>
+                        <div class="step-line"></div>
+                        <div class="step" id="step-2">
+                            <div class="step-icon">02</div>
+                            <div class="step-label">Face<br>Embedding</div>
+                        </div>
+                        <div class="step-line"></div>
+                        <div class="step" id="step-3">
+                            <div class="step-icon">03</div>
+                            <div class="step-label">Web<br>Search</div>
+                        </div>
+                        <div class="step-line"></div>
+                        <div class="step" id="step-4">
+                            <div class="step-icon">04</div>
+                            <div class="step-label">Identity<br>Verification</div>
+                        </div>
+                        <div class="step-line"></div>
+                        <div class="step" id="step-5">
+                            <div class="step-icon">05</div>
+                            <div class="step-label">Blockchain<br>Anchor</div>
+                        </div>
+                    </div>
+
+                    <div class="log-container" id="log-container">
+                        <div class="log-header"><span>LIVE OUTPUT</span><span>STREAM / SSE</span></div>
+                        <div class="log-output" id="log-output"></div>
+                    </div>
+                </section>
+
+                <section class="results-section" id="results-section" style="display:none;" aria-live="polite">
+                    <div class="results-intro">
+                        <div>
+                            <div class="section-kicker"><span>03 / VERIFICATION RECORD</span></div>
+                            <h2>The signal is now traceable.</h2>
+                        </div>
+                        <div class="record-stamp">HHG<br>VERIFIED</div>
+                    </div>
+
+                    <div class="result-card" id="result-face-detection">
+                        <div class="card-header">
+                            <div class="card-index">01</div>
+                            <div class="card-title-wrap">
+                                <h3>Face detection</h3>
+                                <span>INPUT / GEOMETRY</span>
+                            </div>
+                            <span class="status-badge pending" id="status-face-detection">Pending</span>
+                        </div>
+                        <div class="card-body" id="body-face-detection"><div class="loading-spinner"></div></div>
+                    </div>
+
+                    <div class="result-card" id="result-embedding">
+                        <div class="card-header">
+                            <div class="card-index">02</div>
+                            <div class="card-title-wrap">
+                                <h3>Face embedding</h3>
+                                <span>VECTOR / NORMALIZATION</span>
+                            </div>
+                            <span class="status-badge pending" id="status-embedding">Pending</span>
+                        </div>
+                        <div class="card-body" id="body-embedding"><div class="loading-spinner"></div></div>
+                    </div>
+
+                    <div class="result-card" id="result-web-search">
+                        <div class="card-header">
+                            <div class="card-index">03</div>
+                            <div class="card-title-wrap">
+                                <h3>Web search</h3>
+                                <span>DISCOVERY / CANDIDATES</span>
+                            </div>
+                            <span class="status-badge pending" id="status-web-search">Pending</span>
+                        </div>
+                        <div class="card-body" id="body-web-search"><div class="loading-spinner"></div></div>
+                    </div>
+
+                    <div class="result-card" id="result-verification">
+                        <div class="card-header">
+                            <div class="card-index">04</div>
+                            <div class="card-title-wrap">
+                                <h3>Face verification</h3>
+                                <span>MATCH / CONFIDENCE</span>
+                            </div>
+                            <span class="status-badge pending" id="status-verification">Pending</span>
+                        </div>
+                        <div class="card-body" id="body-verification"><div class="loading-spinner"></div></div>
+                    </div>
+
+                    <div class="result-card result-card-chain" id="result-blockchain">
+                        <div class="card-header">
+                            <div class="card-index">05</div>
+                            <div class="card-title-wrap">
+                                <h3>Blockchain anchor</h3>
+                                <span>TAMPER-EVIDENT / RECORD</span>
+                            </div>
+                            <span class="status-badge pending" id="status-blockchain">Pending</span>
+                        </div>
+                        <div class="card-body" id="body-blockchain"><div class="loading-spinner"></div></div>
+                    </div>
+                </section>
+
+                <section class="error-section" id="error-section" style="display:none;">
+                    <div class="error-card">
+                        <div class="error-topline"><span>PIPELINE INTERRUPTED</span><span>ERR / T3</span></div>
+                        <div class="error-icon">×</div>
+                        <h3>Signal could not be verified.</h3>
+                        <p id="error-message"></p>
+                        <button class="btn btn-secondary" id="retry-btn" type="button">Reset and retry ↻</button>
+                    </div>
+                </section>
             </div>
         </section>
 
-        <!-- Error Section -->
-        <section class="error-section" id="error-section" style="display: none;">
-            <div class="error-card">
-                <div class="error-icon">❌</div>
-                <h3>Error</h3>
-                <p id="error-message"></p>
-                <button class="btn btn-secondary" id="retry-btn">Try Again</button>
-            </div>
-        </section>
-    </div>
+        <footer class="footer">
+            <div>HH GOA 2026</div>
+            <div>LESS NOISE. MORE SIGNAL.</div>
+            <a href="https://hhgoa.com/" target="_blank" rel="noopener">hhgoa.com ↗</a>
+        </footer>
+    </main>
 
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>

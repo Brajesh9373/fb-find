@@ -8,14 +8,11 @@ set PYTHONIOENCODING=utf-8
 set PY_EXE=%~dp0.venv\Scripts\python.exe
 set PIP_EXE=%~dp0.venv\Scripts\pip.exe
 
-:: Check if Python is installed on the machine
 where python >nul 2>nul
 if errorlevel 1 goto no_python
 
-:: Check if virtual environment exists
 if not exist "%PY_EXE%" goto setup_venv
 
-:: Check if packages are installed
 "%PY_EXE%" -c "import flask, rich, cv2, numpy, PIL, onnxruntime, insightface" >nul 2>nul
 if errorlevel 1 goto install_packages
 
@@ -46,21 +43,15 @@ echo      Face -^> Web -^> Blockchain Launcher
 echo ============================================================
 echo.
 echo   1. Start Web Interface (http://localhost:5000)
-echo   2. Run CLI Demo (Mock Search, Offline)
-echo   3. Run CLI Pipeline (Custom Image / Live Search)
-echo   4. Run Test Suite (pytest)
-echo   5. Deploy Contract to Polygon Amoy
-echo   6. Exit
+echo   2. Run CLI Pipeline
+echo   3. Exit
 echo.
 echo ============================================================
-set /p choice=Enter choice (1-6): 
+set /p choice=Enter choice (1-3): 
 
 if "%choice%"=="1" goto run_web
-if "%choice%"=="2" goto run_demo
-if "%choice%"=="3" goto run_custom
-if "%choice%"=="4" goto run_tests
-if "%choice%"=="5" goto deploy
-if "%choice%"=="6" goto exit_app
+if "%choice%"=="2" goto run_custom
+if "%choice%"=="3" goto exit_app
 
 echo.
 echo Invalid selection.
@@ -77,20 +68,12 @@ echo.
 pause
 goto menu
 
-:run_demo
-cls
-echo Running CLI Demo Pipeline...
-echo.
-"%PY_EXE%" -m app.main --image samples/virat-kohli-photo-4k.webp --mock-search --skip-blockchain --tamper-demo
-echo.
-pause
-goto menu
-
 :run_custom
 cls
 echo ============================================================
-echo Run Custom CLI Pipeline
+echo Run CLI Pipeline
 echo ============================================================
+echo Usage: python -m app.main --image ^<path^> [--mock-search] [--skip-blockchain] [--tamper-demo]
 echo.
 set /p img_path=Enter image path (default: samples/virat-kohli-photo-4k.webp): 
 if "%img_path%"=="" set img_path=samples/virat-kohli-photo-4k.webp
@@ -117,23 +100,6 @@ echo.
 echo Running: "%PY_EXE%" -m app.main --image "%img_path%" %SFLAGS% %BFLAGS% --tamper-demo
 echo.
 "%PY_EXE%" -m app.main --image "%img_path%" %SFLAGS% %BFLAGS% --tamper-demo
-echo.
-pause
-goto menu
-
-:run_tests
-cls
-echo Running Tests...
-"%~dp0.venv\Scripts\pytest.exe" tests/ -v
-echo.
-pause
-goto menu
-
-:deploy
-cls
-echo Deploying Smart Contract to Polygon Amoy...
-echo.
-"%PY_EXE%" scripts/deploy.py
 echo.
 pause
 goto menu
