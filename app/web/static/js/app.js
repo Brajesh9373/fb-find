@@ -219,8 +219,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateScanner(percent) {
-        scannerProgress.textContent = `${String(Math.round(percent)).padStart(2, '0')}%`;
-        scannerFill.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+        if (scannerProgress) scannerProgress.textContent = `${String(Math.round(percent)).padStart(2, '0')}%`;
+        if (scannerFill) scannerFill.style.width = `${Math.max(0, Math.min(100, percent))}%`;
         if (trackFill) trackFill.style.width = `${Math.max(0, Math.min(100, percent))}%`;
     }
 
@@ -364,15 +364,25 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function matchedLinkBanner(data, itemClass) {
+        if (!data || !data.matched_url) return '';
+        const labelCls = itemClass === 'blockchain-item' ? 'label' : 'data-label';
+        const valueCls = itemClass === 'blockchain-item' ? 'value' : 'data-value';
+        const pct = (data.matched_similarity !== undefined && data.matched_similarity !== null)
+            ? ` · ${(Number(data.matched_similarity) * 100).toFixed(1)}%` : '';
+        const tier = data.confidence_tier ? ` · ${escapeHtml(data.confidence_tier)}` : '';
+        return `<div class="${itemClass}" style="grid-column:1/-1"><div class="${labelCls}">Final matched link · ${escapeHtml(data.matched_platform || '')}${pct}${tier}</div><div class="${valueCls}"><a href="${escapeHtml(data.matched_url)}" target="_blank" rel="noopener">Open matched source ↗</a></div></div>`;
+    }
+
     function displayBlockchain(data) {
         const body = $('body-blockchain');
         const card = $('result-blockchain');
-        if (data.status === 'skipped') { $('status-blockchain').textContent = 'Skipped'; $('status-blockchain').className = 'status-badge skipped'; body.innerHTML = '<p class="data-value">Blockchain verification skipped.</p>'; return; }
+        if (data.status === 'skipped') { $('status-blockchain').textContent = 'Skipped'; $('status-blockchain').className = 'status-badge skipped'; body.innerHTML = `<div class="data-grid">${matchedLinkBanner(data, 'data-item')}</div><p class="data-value">Blockchain verification skipped.</p>`; return; }
         if (data.status === 'success') {
             card.classList.add('success');
             let tamperHtml = '';
             if (data.tamper_demo) tamperHtml = `<div class="tamper-demo"><h4>Tamper detection</h4><p>Changing the canonical payload changes its fingerprint.</p><div class="tamper-comparison"><div class="tamper-item original"><div class="label">Original</div><div class="hash">${escapeHtml(data.tamper_demo.original_hash)}</div></div><div class="tamper-item tampered"><div class="label">Tampered</div><div class="hash">${escapeHtml(data.tamper_demo.tampered_hash)}</div></div></div><p style="margin-top:8px;color:${data.tamper_demo.hashes_equal?'#9a7217':'#b65b63'};font-weight:600">${data.tamper_demo.hashes_equal ? 'Hashes match.' : 'Hashes differ — tamper detected.'}</p></div>`;
-            body.innerHTML = `<div class="verification-badge ${data.verified ? '' : 'failed'}">${data.verified ? '✓ VERIFIED ON-CHAIN' : '× VERIFICATION FAILED'}</div><div class="blockchain-info"><div class="blockchain-item"><div class="label">Network</div><div class="value">${escapeHtml(data.network)} (${escapeHtml(String(data.chain_id))})</div></div><div class="blockchain-item"><div class="label">Content hash</div><div class="value hash">${escapeHtml(data.content_hash)}</div></div><div class="blockchain-item"><div class="label">Transaction</div><div class="value"><a href="${escapeHtml(data.explorer_url)}" target="_blank" rel="noopener">${escapeHtml((data.tx_hash||'').slice(0,22))}…</a></div></div><div class="blockchain-item"><div class="label">Block</div><div class="value">${escapeHtml(String(data.block_number))}</div></div><div class="blockchain-item"><div class="label">Contract</div><div class="value hash">${escapeHtml(data.contract_address)}</div></div><div class="blockchain-item"><div class="label">Explorer</div><div class="value"><a href="${escapeHtml(data.explorer_url)}" target="_blank" rel="noopener">View on PolygonScan ↗</a></div></div></div>${tamperHtml}`;
+            body.innerHTML = `<div class="verification-badge ${data.verified ? '' : 'failed'}">${data.verified ? '✓ VERIFIED ON-CHAIN' : '× VERIFICATION FAILED'}</div><div class="blockchain-info">${matchedLinkBanner(data, 'blockchain-item')}<div class="blockchain-item"><div class="label">Network</div><div class="value">${escapeHtml(data.network)} (${escapeHtml(String(data.chain_id))})</div></div><div class="blockchain-item"><div class="label">Content hash</div><div class="value hash">${escapeHtml(data.content_hash)}</div></div><div class="blockchain-item"><div class="label">Transaction</div><div class="value"><a href="${escapeHtml(data.explorer_url)}" target="_blank" rel="noopener">${escapeHtml((data.tx_hash||'').slice(0,22))}…</a></div></div><div class="blockchain-item"><div class="label">Block</div><div class="value">${escapeHtml(String(data.block_number))}</div></div><div class="blockchain-item"><div class="label">Contract</div><div class="value hash">${escapeHtml(data.contract_address)}</div></div><div class="blockchain-item"><div class="label">Explorer</div><div class="value"><a href="${escapeHtml(data.explorer_url)}" target="_blank" rel="noopener">View on PolygonScan ↗</a></div></div></div>${tamperHtml}`;
         } else { card.classList.add('error'); body.innerHTML = '<p class="data-value error">Blockchain verification failed.</p>'; }
     }
 

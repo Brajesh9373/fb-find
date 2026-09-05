@@ -318,9 +318,16 @@ def run_pipeline_stream(
         return
 
     # ── Step 5: Blockchain ──────────────────────────────────────────
+    matched_link = {
+        "matched_url": matched["url"],
+        "matched_platform": plat_label,
+        "matched_title": matched.get("title", ""),
+        "matched_similarity": round(float(matched_similarity), 4),
+        "confidence_tier": matched_tier,
+    }
     if skip_blockchain:
         logger.info("STEP 5/5 — Skipped (user request)")
-        yield _sse("step_done", {"step": "blockchain", "data": {"status": "skipped", "reason": "Blockchain skipped by request"}})
+        yield _sse("step_done", {"step": "blockchain", "data": {"status": "skipped", "reason": "Blockchain skipped by request", **matched_link}})
         yield _sse("pipeline_done", {"success": True, "error": None, "uploaded_image_url": uploaded_image_url})
         return
 
@@ -372,6 +379,7 @@ def run_pipeline_stream(
             "local_hash": verify_result.local_hash,
             "chain_hash": verify_result.chain_hash,
             "canonical_payload": payload,
+            **matched_link,
         }
 
         # Tamper demo
