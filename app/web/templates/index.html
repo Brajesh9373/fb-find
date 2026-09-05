@@ -3,249 +3,286 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#f5f0e6">
-    <title>HH GOA 2026 — Face ID Verification</title>
+    <meta name="theme-color" content="#051c19">
+    <title>Identity Signal — Face → Web → Blockchain</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <div class="site-noise" aria-hidden="true"></div>
-    <div class="coast-glow coast-glow-a" aria-hidden="true"></div>
-    <div class="coast-glow coast-glow-b" aria-hidden="true"></div>
+    <div class="noise" aria-hidden="true"></div>
+    <div class="cursor-glow" aria-hidden="true"></div>
 
-    <header class="topbar">
-        <a class="brand" href="#top" aria-label="HH Goa 2026 home">
-            <span class="brand-mark" aria-hidden="true">
-                <span></span><span></span><span></span>
-            </span>
-            <span class="brand-copy">
-                <strong>HH GOA</strong>
-                <small>2026 / OPEN TRIALS</small>
-            </span>
-        </a>
-        <div class="topbar-center">GOA, INDIA&nbsp;&nbsp;·&nbsp;&nbsp;28—31 OCT 2026</div>
-        <a class="topbar-chip" href="https://hhgoa.com/" target="_blank" rel="noopener">LESS NOISE. MORE SIGNAL ↗</a>
-    </header>
+    <div class="site-shell">
+        <header class="topbar">
+            <a class="brand" href="#top" aria-label="Identity Signal home">
+                <span class="brand-mark" aria-hidden="true">
+                    <span></span><span></span>
+                </span>
+                <span class="brand-name">Identity Signal</span>
+            </a>
 
-    <main class="page-shell" id="top">
-        <section class="hero" aria-labelledby="page-title">
-            <div class="hero-copy">
-                <div class="eyebrow"><span class="eyebrow-dot"></span>TASK #3 / SIGNAL CHECK</div>
-                <h1 id="page-title">FIND THE<br><em>REAL SIGNAL.</em></h1>
-                <p class="hero-lede">Detect a face. Find its real web footprint. Lock the verified match into a tamper-evident record.</p>
-                <div class="hero-meta">
-                    <span>FACE → WEB → CHAIN</span>
-                    <span>PIPELINE ONLINE</span>
-                </div>
+            <nav class="nav" aria-label="Primary navigation">
+                <a class="nav-link active" href="#top">Home</a>
+                <a class="nav-link" href="#verify">Verify</a>
+                <a class="nav-link" href="#technology">Technology</a>
+                <a class="nav-link" href="#about">About</a>
+            </nav>
+
+            <div class="topbar-status">
+                <button class="outline-pill" type="button" onclick="document.getElementById('verify').scrollIntoView({behavior:'smooth'})">
+                    Get Started <span>↗</span>
+                </button>
+                <div class="online"><i></i> System Online</div>
             </div>
-            <div class="hero-seal" aria-hidden="true">
-                <div class="seal-ring seal-ring-outer"></div>
-                <div class="seal-ring seal-ring-inner"></div>
-                <div class="seal-cross"></div>
-                <div class="seal-label seal-label-top">SIGNAL / ID</div>
-                <div class="seal-label seal-label-bottom">HHG • 2026</div>
-            </div>
-        </section>
+        </header>
 
-        <section class="studio-grid" aria-label="Verification studio">
-            <aside class="studio-rail">
-                <div class="rail-heading">HOW IT MOVES</div>
-                <div class="rail-track">
-                    <div class="rail-line"></div>
-                    <div class="rail-step"><b>01</b><span>DETECT</span><small>Find the face in-frame.</small></div>
-                    <div class="rail-step"><b>02</b><span>ENCODE</span><small>Build its embedding.</small></div>
-                    <div class="rail-step"><b>03</b><span>SEARCH</span><small>Locate the real post.</small></div>
-                    <div class="rail-step"><b>04</b><span>VERIFY</span><small>Score the candidate.</small></div>
-                    <div class="rail-step"><b>05</b><span>ANCHOR</span><small>Write the record on-chain.</small></div>
-                </div>
-                <div class="rail-note">NO HARDCODED RESULTS.<br>ONE REAL SIGNAL.</div>
-            </aside>
-
-            <div class="studio-main">
-                <section class="upload-card" id="upload-section">
-                    <div class="section-kicker">
-                        <span>01 / INPUT</span>
-                        <span class="live-pill"><i></i>READY</span>
-                    </div>
-                    <div class="upload-header">
-                        <div>
-                            <h2>Drop the source.</h2>
-                            <p>Use a clear photo containing one primary face.</p>
-                        </div>
-                        <div class="tiny-spec">JPG · PNG · WEBP<br>MAX 16 MB</div>
-                    </div>
-
-                    <div class="upload-area" id="upload-area">
-                        <div class="upload-corner corner-tl"></div>
-                        <div class="upload-corner corner-tr"></div>
-                        <div class="upload-corner corner-bl"></div>
-                        <div class="upload-corner corner-br"></div>
-                        <div class="upload-content">
-                            <div class="upload-symbol" aria-hidden="true">+</div>
-                            <div class="upload-title">DROP IMAGE HERE</div>
-                            <div class="upload-subtitle">OR CLICK TO BROWSE</div>
-                            <div class="upload-hint">FACE SHOULD BE CLEAR · NO MANUAL CROP REQUIRED</div>
-                        </div>
-                        <input type="file" id="file-input" accept="image/*" hidden>
-                    </div>
-
-                    <div class="upload-preview" id="upload-preview" style="display:none;">
-                        <div class="preview-frame">
-                            <span class="preview-tag">SOURCE IMAGE</span>
-                            <img id="preview-image" src="" alt="Selected source preview">
-                        </div>
-                        <button class="btn btn-secondary" id="change-image" type="button">Replace source</button>
-                    </div>
-
-                    <div class="action-strip">
-                        <div class="action-caption">
-                            <span class="action-marker">*</span>
-                            <span>STACK SIGNAL READY</span>
-                        </div>
-                        <button class="btn btn-primary" id="analyze-btn" disabled type="button">
-                            <span class="btn-text">Run verification</span>
-                            <span class="btn-loader" style="display:none;">Pipeline running…</span>
-                            <span class="btn-arrow" aria-hidden="true">↗</span>
+        <main id="top">
+            <section class="hero">
+                <div class="hero-copy reveal">
+                    <div class="eyebrow">AI × WEB INTELLIGENCE × BLOCKCHAIN</div>
+                    <h1>Real Identity<br><em>Real Impact.</em></h1>
+                    <p class="hero-lede">Detect faces, find the truth, and create tamper-proof verification on blockchain.</p>
+                    <div class="hero-actions">
+                        <button class="primary-cta" type="button" onclick="document.getElementById('verify').scrollIntoView({behavior:'smooth'})">
+                            Verify a Face <span>→</span>
+                        </button>
+                        <button class="text-cta" type="button" onclick="document.getElementById('technology').scrollIntoView({behavior:'smooth'})">
+                            <span class="play-dot">▶</span>
+                            <span>See how it works</span>
                         </button>
                     </div>
-                </section>
+                    <div class="hero-note">Trusted by builders for a safer internet.</div>
+                </div>
 
-                <section class="progress-section" id="progress-section" style="display:none;">
-                    <div class="section-kicker">
-                        <span>02 / LIVE PIPELINE</span>
-                        <span class="live-pill live-pill-running"><i></i>PROCESSING</span>
+                <div class="hero-visual reveal reveal-delay" aria-label="Live identity scanning visual">
+                    <div class="hero-image-wrap">
+                        <video class="hero-video" autoplay muted loop playsinline preload="metadata">
+                            <source src="{{ url_for('static', filename='media/coastal.mp4') }}" type="video/mp4">
+                        </video>
+                        <div class="hero-image-wash"></div>
+                        <div class="scan-face"></div>
+                        <div class="scan-grid"></div>
+                        <div class="scan-line"></div>
+                        <div class="corner c1"></div><div class="corner c2"></div><div class="corner c3"></div><div class="corner c4"></div>
+                        <div class="face-orbit orbit-a"></div>
+                        <div class="face-orbit orbit-b"></div>
                     </div>
-                    <div class="pipeline-headline">
+
+                    <div class="scanner-card">
+                        <div class="scanner-top">
+                            <span>SCANNING...</span>
+                            <strong id="scanner-progress">00%</strong>
+                        </div>
+                        <div class="scanner-meter"><span id="scanner-meter-fill"></span></div>
+                        <div class="scanner-list">
+                            <div><span>Face Detected</span><b data-mini-step="face_detection">✓</b></div>
+                            <div><span>Features Mapped</span><b data-mini-step="embedding">✓</b></div>
+                            <div><span>Searching Web</span><b data-mini-step="web_search">…</b></div>
+                            <div><span>Verifying</span><b data-mini-step="verification">…</b></div>
+                            <div><span>Anchoring</span><b data-mini-step="blockchain">…</b></div>
+                        </div>
+                    </div>
+
+                    <div class="scribble scribble-one">Same Face.<br>New Truth.</div>
+                    <div class="scribble scribble-two">signal<br>verified ↗</div>
+                </div>
+            </section>
+
+            <section class="split-band cream-band" id="about">
+                <div class="section-copy reveal">
+                    <div class="eyebrow dark">WHY IT MATTERS</div>
+                    <h2>A safer internet<br>begins with <span>trust.</span></h2>
+                    <p>From fake profiles to identity theft, we help you find the real person using AI, web intelligence, and blockchain.</p>
+                    <a class="line-link" href="#verify">Learn more <span>→</span></a>
+                </div>
+                <div class="coastal-card reveal reveal-delay">
+                    <div class="coastal-arch arch-a"><span></span></div>
+                    <div class="coastal-arch arch-b"><span></span></div>
+                    <div class="coastal-image"><img src="{{ url_for('static', filename='media/coastal-poster.jpg') }}" alt="Goa coastline" loading="lazy"></div>
+                    <div class="coastal-caption">PEOPLE<br>TECHNOLOGY<br>TRUST<br>A SAFER TOMORROW</div>
+                </div>
+            </section>
+
+            <section class="workflow" id="technology">
+                <div class="workflow-head reveal">
+                    <div>
+                        <div class="eyebrow">HOW IT WORKS</div>
+                        <h2>From image to immutable proof.</h2>
+                    </div>
+                    <div class="workflow-meta"><span>HH GOA 2026</span><span>TASK #3</span></div>
+                </div>
+
+                <div class="workflow-track reveal">
+                    <div class="track-line"><span id="track-fill"></span></div>
+                    <button class="workflow-step" data-step="face_detection" type="button">
+                        <span class="workflow-icon">⌁</span>
+                        <span class="workflow-index">01</span>
+                        <strong>Detect</strong>
+                        <small>Find face in image</small>
+                    </button>
+                    <button class="workflow-step" data-step="embedding" type="button">
+                        <span class="workflow-icon">▦</span>
+                        <span class="workflow-index">02</span>
+                        <strong>Encode</strong>
+                        <small>Generate embedding</small>
+                    </button>
+                    <button class="workflow-step" data-step="web_search" type="button">
+                        <span class="workflow-icon">⌕</span>
+                        <span class="workflow-index">03</span>
+                        <strong>Search</strong>
+                        <small>Reverse image search</small>
+                    </button>
+                    <button class="workflow-step" data-step="verification" type="button">
+                        <span class="workflow-icon">◇</span>
+                        <span class="workflow-index">04</span>
+                        <strong>Verify</strong>
+                        <small>Compare &amp; match</small>
+                    </button>
+                    <button class="workflow-step" data-step="blockchain" type="button">
+                        <span class="workflow-icon">⌘</span>
+                        <span class="workflow-index">05</span>
+                        <strong>Anchor</strong>
+                        <small>Store proof on chain</small>
+                    </button>
+                </div>
+
+                <div class="verify-console" id="verify">
+                    <div class="console-head">
                         <div>
-                            <h2>Watch the signal move.</h2>
-                            <p>Each stage reports its own state as the pipeline advances.</p>
+                            <div class="eyebrow dark">VERIFY AN IDENTITY</div>
+                            <h3>One image. Five checks.</h3>
                         </div>
-                        <span class="pipeline-id">HHG-T3 / LIVE</span>
+                        <div class="threshold-chip">MATCH ≥ <span>0.40</span></div>
                     </div>
 
-                    <div class="progress-steps">
-                        <div class="step" id="step-1">
-                            <div class="step-icon">01</div>
-                            <div class="step-label">Face<br>Detection</div>
+                    <div class="console-grid">
+                        <div class="drop-panel" id="upload-area">
+                            <input type="file" id="file-input" accept="image/*" hidden>
+                            <div class="drop-icon">↑</div>
+                            <div class="drop-title">Drop &amp; inspect</div>
+                            <div class="drop-sub">Drag &amp; drop an image here<br><span>or click to browse</span></div>
+                            <div class="drop-hint">JPG · PNG · WEBP · MAX 16MB</div>
                         </div>
-                        <div class="step-line"></div>
-                        <div class="step" id="step-2">
-                            <div class="step-icon">02</div>
-                            <div class="step-label">Face<br>Embedding</div>
-                        </div>
-                        <div class="step-line"></div>
-                        <div class="step" id="step-3">
-                            <div class="step-icon">03</div>
-                            <div class="step-label">Web<br>Search</div>
-                        </div>
-                        <div class="step-line"></div>
-                        <div class="step" id="step-4">
-                            <div class="step-icon">04</div>
-                            <div class="step-label">Identity<br>Verification</div>
-                        </div>
-                        <div class="step-line"></div>
-                        <div class="step" id="step-5">
-                            <div class="step-icon">05</div>
-                            <div class="step-label">Blockchain<br>Anchor</div>
-                        </div>
-                    </div>
 
-                    <div class="log-container" id="log-container">
-                        <div class="log-header"><span>LIVE OUTPUT</span><span>STREAM / SSE</span></div>
-                        <div class="log-output" id="log-output"></div>
-                    </div>
-                </section>
-
-                <section class="results-section" id="results-section" style="display:none;" aria-live="polite">
-                    <div class="results-intro">
-                        <div>
-                            <div class="section-kicker"><span>03 / VERIFICATION RECORD</span></div>
-                            <h2>The signal is now traceable.</h2>
-                        </div>
-                        <div class="record-stamp">HHG<br>VERIFIED</div>
-                    </div>
-
-                    <div class="result-card" id="result-face-detection">
-                        <div class="card-header">
-                            <div class="card-index">01</div>
-                            <div class="card-title-wrap">
-                                <h3>Face detection</h3>
-                                <span>INPUT / GEOMETRY</span>
+                        <div class="preview-panel" id="upload-preview" style="display:none;">
+                            <div class="preview-label">INPUT FACE</div>
+                            <div class="preview-image-frame">
+                                <img id="preview-image" src="" alt="Selected face preview">
+                                <div class="preview-scan"></div>
                             </div>
-                            <span class="status-badge pending" id="status-face-detection">Pending</span>
+                            <button class="ghost-btn" id="change-image" type="button">Change image ↗</button>
                         </div>
+
+                        <div class="status-panel">
+                            <div class="status-kicker">LIVE STATUS</div>
+                            <div class="status-big" id="console-status">Ready to scan.</div>
+                            <div class="status-detail" id="console-detail">Upload a face image to start the identity signal pipeline.</div>
+                            <div class="mini-status-list">
+                                <div data-console-step="face_detection"><span>01</span>Face detection<b>—</b></div>
+                                <div data-console-step="embedding"><span>02</span>Embedding<b>—</b></div>
+                                <div data-console-step="web_search"><span>03</span>Web search<b>—</b></div>
+                                <div data-console-step="verification"><span>04</span>Verification<b>—</b></div>
+                                <div data-console-step="blockchain"><span>05</span>Blockchain<b>—</b></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="console-actions">
+                        <button class="primary-cta console-run" id="analyze-btn" type="button" disabled>
+                            <span class="btn-text">Run Verification</span>
+                            <span class="btn-loader" style="display:none;">Pipeline running...</span>
+                            <span class="arrow">→</span>
+                        </button>
+                        <div class="privacy-note"><span>◎</span> Results are generated from the uploaded image and live pipeline responses.</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="results-wrap" id="results-section" style="display:none;">
+                <div class="results-head">
+                    <div>
+                        <div class="eyebrow">PIPELINE OUTPUT</div>
+                        <h2>Signal report.</h2>
+                    </div>
+                    <div class="result-stamp" id="result-stamp">PROCESSING</div>
+                </div>
+
+                <div class="results-layout">
+                    <div class="result-card result-face" id="result-face-detection">
+                        <div class="card-header"><span class="card-index">01</span><h3>Face detection</h3><span class="status-badge pending" id="status-face-detection">Pending</span></div>
                         <div class="card-body" id="body-face-detection"><div class="loading-spinner"></div></div>
                     </div>
 
-                    <div class="result-card" id="result-embedding">
-                        <div class="card-header">
-                            <div class="card-index">02</div>
-                            <div class="card-title-wrap">
-                                <h3>Face embedding</h3>
-                                <span>VECTOR / NORMALIZATION</span>
-                            </div>
-                            <span class="status-badge pending" id="status-embedding">Pending</span>
-                        </div>
+                    <div class="result-card result-embedding" id="result-embedding">
+                        <div class="card-header"><span class="card-index">02</span><h3>Embedding</h3><span class="status-badge pending" id="status-embedding">Pending</span></div>
                         <div class="card-body" id="body-embedding"><div class="loading-spinner"></div></div>
                     </div>
 
-                    <div class="result-card" id="result-web-search">
-                        <div class="card-header">
-                            <div class="card-index">03</div>
-                            <div class="card-title-wrap">
-                                <h3>Web search</h3>
-                                <span>DISCOVERY / CANDIDATES</span>
-                            </div>
-                            <span class="status-badge pending" id="status-web-search">Pending</span>
-                        </div>
+                    <div class="result-card result-search" id="result-web-search">
+                        <div class="card-header"><span class="card-index">03</span><h3>Web discovery</h3><span class="status-badge pending" id="status-web-search">Pending</span></div>
                         <div class="card-body" id="body-web-search"><div class="loading-spinner"></div></div>
                     </div>
 
-                    <div class="result-card" id="result-verification">
-                        <div class="card-header">
-                            <div class="card-index">04</div>
-                            <div class="card-title-wrap">
-                                <h3>Face verification</h3>
-                                <span>MATCH / CONFIDENCE</span>
-                            </div>
-                            <span class="status-badge pending" id="status-verification">Pending</span>
-                        </div>
+                    <div class="result-card result-verification" id="result-verification">
+                        <div class="card-header"><span class="card-index">04</span><h3>Identity verification</h3><span class="status-badge pending" id="status-verification">Pending</span></div>
                         <div class="card-body" id="body-verification"><div class="loading-spinner"></div></div>
                     </div>
 
-                    <div class="result-card result-card-chain" id="result-blockchain">
-                        <div class="card-header">
-                            <div class="card-index">05</div>
-                            <div class="card-title-wrap">
-                                <h3>Blockchain anchor</h3>
-                                <span>TAMPER-EVIDENT / RECORD</span>
-                            </div>
-                            <span class="status-badge pending" id="status-blockchain">Pending</span>
-                        </div>
+                    <div class="result-card result-blockchain" id="result-blockchain">
+                        <div class="card-header"><span class="card-index">05</span><h3>Blockchain proof</h3><span class="status-badge pending" id="status-blockchain">Pending</span></div>
                         <div class="card-body" id="body-blockchain"><div class="loading-spinner"></div></div>
                     </div>
-                </section>
+                </div>
 
-                <section class="error-section" id="error-section" style="display:none;">
-                    <div class="error-card">
-                        <div class="error-topline"><span>PIPELINE INTERRUPTED</span><span>ERR / T3</span></div>
-                        <div class="error-icon">×</div>
-                        <h3>Signal could not be verified.</h3>
-                        <p id="error-message"></p>
-                        <button class="btn btn-secondary" id="retry-btn" type="button">Reset and retry ↻</button>
-                    </div>
-                </section>
-            </div>
-        </section>
+                <div class="log-container">
+                    <div class="log-header"><span>LIVE PIPELINE LOG</span><span>STREAM</span></div>
+                    <div class="log-output" id="log-output"></div>
+                </div>
+            </section>
 
-        <footer class="footer">
-            <div>HH GOA 2026</div>
-            <div>LESS NOISE. MORE SIGNAL.</div>
-            <a href="https://hhgoa.com/" target="_blank" rel="noopener">hhgoa.com ↗</a>
+            <section class="manifesto">
+                <div class="manifesto-bg"></div>
+                <div class="manifesto-copy reveal">
+                    <div class="eyebrow">BUILDING A MORE TRUSTED DIGITAL WORLD</div>
+                    <h2>People, <span>not profiles.</span></h2>
+                    <p>We believe technology should verify humans, not reduce them to data.</p>
+                    <a class="line-link light" href="#verify">Our mission <span>→</span></a>
+                </div>
+                <div class="manifesto-grid reveal reveal-delay">
+                    <div><b>01</b><strong>Builders</strong><span>Build securely</span></div>
+                    <div><b>02</b><strong>Researchers</strong><span>Verify truth</span></div>
+                    <div><b>03</b><strong>Communities</strong><span>Fight misinformation</span></div>
+                </div>
+                <div class="scribble manifesto-scribble">Less Noise.<br>More Truth.</div>
+            </section>
+        </main>
+
+        <footer class="footer" id="footer">
+            <div class="footer-brand"><span class="brand-mark" aria-hidden="true"><span></span><span></span></span><span>Identity Signal</span></div>
+            <div class="footer-links"><a href="#top">Home</a><a href="#verify">Verify</a><a href="#technology">Technology</a><a href="#about">About</a></div>
+            <div class="footer-status"><span class="online"><i></i> System Online</span></div>
         </footer>
-    </main>
+    </div>
+
+    <section class="progress-section" id="progress-section" style="display:none;" aria-hidden="true">
+        <div class="progress-steps">
+            <div class="step" id="step-1"><div class="step-icon">1</div><div class="step-label">Face Detection</div></div>
+            <div class="step-line"></div>
+            <div class="step" id="step-2"><div class="step-icon">2</div><div class="step-label">Embedding</div></div>
+            <div class="step-line"></div>
+            <div class="step" id="step-3"><div class="step-icon">3</div><div class="step-label">Web Search</div></div>
+            <div class="step-line"></div>
+            <div class="step" id="step-4"><div class="step-icon">4</div><div class="step-label">Verification</div></div>
+            <div class="step-line"></div>
+            <div class="step" id="step-5"><div class="step-icon">5</div><div class="step-label">Blockchain</div></div>
+        </div>
+    </section>
+
+    <section class="error-section" id="error-section" style="display:none;">
+        <div class="error-card"><div class="error-icon">!</div><h3>Pipeline interrupted</h3><p id="error-message"></p><button class="ghost-btn" id="retry-btn" type="button">Try again ↗</button></div>
+    </section>
 
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
