@@ -7,12 +7,32 @@ import numpy as np
 from app import config
 
 
+def is_valid_embedding(emb: np.ndarray) -> bool:
+    """Check if embedding is valid (not all zeros, not NaN).
+    
+    Invalid embeddings will always produce 0% similarity.
+    """
+    if emb is None:
+        return False
+    emb = np.asarray(emb, dtype=np.float64)
+    if np.any(np.isnan(emb)):
+        return False
+    norm = np.linalg.norm(emb)
+    return norm > 0.01  # Not all zeros
+
+
 def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     """Cosine similarity between two L2-normalised (or not) vectors.
 
     Returns a value in ``[-1, 1]`` (practically ``[0, 1]`` for face
     embeddings from the same model).
+    
+    Returns 0.0 if either embedding is invalid (zeros/NaN).
     """
+    # Validate embeddings first
+    if not is_valid_embedding(a) or not is_valid_embedding(b):
+        return 0.0
+    
     a = a.astype(np.float64)
     b = b.astype(np.float64)
     denom = np.linalg.norm(a) * np.linalg.norm(b)

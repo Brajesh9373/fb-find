@@ -111,24 +111,56 @@ class GoogleLensSearcher:
 
     @staticmethod
     def _upload_image(image_path: str) -> str:
-        """Upload image to catbox.moe and return the public URL."""
-        logger.info("Uploading image to temporary hosting (catbox.moe) ...")
-        with open(image_path, "rb") as fh:
-            resp = requests.post(
-                "https://catbox.moe/user/api.php",
-                data={"reqtype": "fileupload"},
-                files={"fileToUpload": fh},
-                timeout=60,
-            )
-        if resp.status_code != 200:
-            raise RuntimeError(
-                f"Image upload failed (HTTP {resp.status_code}): {resp.text[:200]}"
-            )
-        url = resp.text.strip()
-        if not url.startswith("http"):
-            raise RuntimeError(f"Unexpected upload response: {url}")
-        logger.info("Image uploaded: %s", url)
-        return url
+        """Upload image to a public hosting service and return the public URL.
+        
+        Tries multiple services for reliability.
+        """
+        import time
+        
+        logger.info("Uploading image to temporary hosting...")
+        
+        # Try freeimage.host first (reliable, direct image URLs)
+        try:
+            with open(image_path, "rb") as fh:
+                resp = requests.post(
+                    "https://freeimage.host/api/1/upload",
+                    files={"source": fh},
+                    data={
+                        "key": "6d207e02198a847aa98d0a2a901485a5",
+                        "type": "file",
+                        "format": "json",
+                    },
+                    timeout=30,
+                )
+            
+            if resp.status_code == 200:
+                result = resp.json()
+                if "image" in result and "url" in result["image"]:
+                    url = result["image"]["url"]
+                    logger.info("Image uploaded to freeimage.host: %s", url)
+                    return url
+        except Exception as exc:
+            logger.warning("freeimage.host upload failed: %s", exc)
+        
+        # Fallback: catbox.moe
+        try:
+            with open(image_path, "rb") as fh:
+                resp = requests.post(
+                    "https://catbox.moe/user/api.php",
+                    data={"reqtype": "fileupload"},
+                    files={"fileToUpload": fh},
+                    timeout=30,
+                )
+            
+            if resp.status_code == 200:
+                url = resp.text.strip()
+                if url.startswith("http"):
+                    logger.info("Image uploaded to catbox.moe: %s", url)
+                    return url
+        except Exception as exc:
+            logger.warning("catbox.moe upload failed: %s", exc)
+        
+        raise RuntimeError("All image upload services failed. Check your internet connection.")
 
     def search_from_url(self, image_url: str) -> list[dict[str, Any]]:
         """Search using a publicly-accessible image URL (no upload)."""

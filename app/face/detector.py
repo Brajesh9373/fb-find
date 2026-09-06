@@ -76,10 +76,34 @@ class FaceDetector:
             ) from exc
 
         logger.info("Loading InsightFace model '%s' ...", self.model_name)
-        self._app = FaceAnalysis(
-            name=self.model_name, providers=self.providers
-        )
-        self._app.prepare(ctx_id=0, det_size=self.det_size)
+        
+        # HYBRID APPROACH: Use buffalo_l for detection (better compatibility)
+        # Use antelopev2 for recognition (best accuracy)
+        if self.model_name == 'antelopev2':
+            logger.info("Using hybrid: buffalo_l (detection) + antelopev2 (recognition)")
+            
+            # Load buffalo_l for detection
+            det_app = FaceAnalysis(name='buffalo_l', providers=self.providers)
+            det_app.prepare(ctx_id=0, det_size=self.det_size)
+            self._app = det_app
+            
+            # Load antelopev2 for recognition
+            try:
+                recog_app = FaceAnalysis(name='antelopev2', providers=self.providers)
+                recog_app.prepare(ctx_id=0, det_size=self.det_size)
+                if 'recognition' in recog_app.models:
+                    self._app.models['recognition'] = recog_app.models['recognition']
+                    logger.info("Loaded antelopev2 recognition model (glintr100)")
+            except Exception as recog_exc:
+                logger.warning("Could not load antelopev2 recognition: %s", recog_exc)
+        else:
+            self._app = FaceAnalysis(name=self.model_name, providers=self.providers)
+            self._app.prepare(ctx_id=0, det_size=self.det_size)
+        
+        # Log available models
+        if hasattr(self._app, 'models'):
+            logger.info("Loaded models: %s", list(self._app.models.keys()))
+        
         logger.info("InsightFace model ready.")
 
     def reset(self):
@@ -141,9 +165,21 @@ class FaceDetector:
             if bbox_area < min_face_area:
                 continue
 
-            emb: np.ndarray = f.normed_embedding  # already L2-normalised by InsightFace
+            # Extract embedding - InsightFace provides this directly
+            emb = f.normed_embedding  # L2-normalised embedding
+            
+            # Fallback to raw embedding if normed is not available
             if emb is None:
-                emb = getattr(f, "embedding", np.zeros(512, dtype=np.float32))
+                emb = getattr(f, "embedding", None)
+            
+            # Ensure we have a valid embedding
+            if emb is not None:
+                emb = np.asarray(emb, dtype=np.float32)
+            else:
+                # Last resort: zeros
+                logger.warning("No embedding for face, using zeros")
+                emb = np.zeros(512, dtype=np.float32)
+            
             kps = getattr(f, "kps", None)
             age = getattr(f, "age", None)
             gender = getattr(f, "gender", None)
@@ -151,7 +187,7 @@ class FaceDetector:
                 FaceInfo(
                     bbox=bbox,
                     confidence=conf,
-                    embedding=emb.astype(np.float32),
+                    embedding=emb,
                     kps=kps,
                     age=age,
                     gender=gender,

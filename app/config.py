@@ -53,7 +53,7 @@ SOCIAL_DOMAINS: list[str] = [
 
 # ── InsightFace ───────────────────────────────────────────────────────
 INSIGHTFACE_MODEL: str = os.getenv("INSIGHTFACE_MODEL", "buffalo_l")
-INSIGHTFACE_DET_SIZE: tuple[int, int] = (640, 640)
+INSIGHTFACE_DET_SIZE: tuple[int, int] = (320, 320)
 
 # ── Search ────────────────────────────────────────────────────────────
 MAX_CANDIDATES: int = int(os.getenv("MAX_CANDIDATES", "30"))

@@ -111,23 +111,24 @@ def run_pipeline_stream(
 
         best = faces[0]
 
-        # Crop the face and overwrite the uploaded file so the rest of the
-        # pipeline (search, verification, display) works on the face only.
+        # Crop the face to a SEPARATE file (preserve original for display)
+        cropped_path = image_path + ".face.jpg"
         try:
             img = cv2.imread(image_path)
             if img is not None:
                 h, w = img.shape[:2]
                 x1, y1, x2, y2 = best.bbox
                 bw, bh = x2 - x1, y2 - y1
-                # Tight crop: minimal padding so Google Lens sees ONLY the face
-                pad_x, pad_y = int(bw * 0.15), int(bh * 0.2)
+                # Moderate padding for context (helps search engines)
+                pad_x, pad_y = int(bw * 0.30), int(bh * 0.40)
                 cx1, cy1 = max(0, x1 - pad_x), max(0, y1 - pad_y)
                 cx2, cy2 = min(w, x2 + pad_x), min(h, y2 + pad_y)
                 cropped = img[cy1:cy2, cx1:cx2]
-                cv2.imwrite(image_path, cropped)
-                logger.info("Cropped face region: (%d,%d)-(%d,%d) → saved to %s", cx1, cy1, cx2, cy2, image_path)
+                cv2.imwrite(cropped_path, cropped, [cv2.IMWRITE_JPEG_QUALITY, 95])
+                logger.info("Cropped face region: (%d,%d)-(%d,%d) → saved to %s", cx1, cy1, cx2, cy2, cropped_path)
         except Exception as crop_exc:
             logger.warning("Face crop failed, using original image: %s", crop_exc)
+            cropped_path = None
 
         face_data = {
             "status": "success",
@@ -169,9 +170,11 @@ def run_pipeline_stream(
             yield _sse("step_progress", {"step": "web_search", "message": "Using mock search results (offline mode)..."})
             candidates = _mock_candidates(image_path)
         else:
+            # Use cropped face image if available, otherwise original
+            search_image_path = cropped_path if cropped_path and os.path.exists(cropped_path) else image_path
             yield _sse("step_progress", {"step": "web_search", "message": "Uploading face to search engine..."})
             searcher = GoogleLensSearcher()
-            candidates = searcher.search(image_path)
+            candidates = searcher.search(search_image_path)
 
         if not candidates:
             yield _sse("step_error", {"step": "web_search", "error": "No candidates found from web search"})
@@ -206,7 +209,7 @@ def run_pipeline_stream(
         yield _sse("pipeline_done", {"success": False, "error": f"Web search failed: {exc}", "uploaded_image_url": uploaded_image_url})
         return
 
-    # ── Step 4: Verification ────────────────────────────────────────
+    # ── Step 4: Verification (Exact match first, then similar) ───────
     from app.face.similarity import get_confidence_tier
 
     logger.info("STEP 4/5 — Verifying top %d candidates (High>=%.0f%%, Probable>=%.0f%%)...", max_verify, high_threshold * 100, prob_threshold * 100)
@@ -216,7 +219,11 @@ def run_pipeline_stream(
     matched_similarity = 0.0
     matched_tier = "UNMATCHED"
     evaluated_candidates = []
-    best_probable = None
+    all_matches = []
+    exact_matches = []  # 95%+ similarity (exact/same image)
+
+    # Exact match threshold (same image or very close copy)
+    EXACT_MATCH_THRESHOLD = 0.95
 
     try:
         to_verify = ranked[:max_verify]
@@ -242,9 +249,17 @@ def run_pipeline_stream(
                 continue
 
             sim = cosine_similarity(query_emb, face.embedding)
-            tier = get_confidence_tier(
-                sim, high_threshold=high_threshold, probable_threshold=prob_threshold
-            )
+            
+            # Classify into tiers
+            if sim >= EXACT_MATCH_THRESHOLD:
+                tier = "EXACT"
+            elif sim >= high_threshold:
+                tier = "HIGH"
+            elif sim >= prob_threshold:
+                tier = "PROBABLE"
+            else:
+                tier = "UNMATCHED"
+            
             eval_entry = {
                 "title": cand.get("title", ""),
                 "url": cand.get("url", ""),
@@ -261,24 +276,39 @@ def run_pipeline_stream(
             })
             logger.info("  Candidate %d/%d [%s]: %.1f%% — %s", idx + 1, len(to_verify), cand.get("source", "?"), sim * 100, tier)
 
-            if tier == "HIGH":
-                matched = cand
-                matched_similarity = sim
-                matched_tier = "HIGH"
-                break
-            elif tier == "PROBABLE":
-                if best_probable is None or sim > best_probable["similarity"]:
-                    best_probable = {
-                        "candidate": cand,
-                        "similarity": sim,
-                        "tier": "PROBABLE",
-                    }
+            # Collect matches by category
+            if tier == "EXACT":
+                exact_matches.append({
+                    "candidate": cand,
+                    "similarity": sim,
+                    "tier": tier,
+                })
+                all_matches.append({
+                    "candidate": cand,
+                    "similarity": sim,
+                    "tier": tier,
+                })
+            elif tier in ("HIGH", "PROBABLE"):
+                all_matches.append({
+                    "candidate": cand,
+                    "similarity": sim,
+                    "tier": tier,
+                })
 
-        # If no HIGH match was found, but a PROBABLE match exists and allowed
-        if matched is None and allow_probable and best_probable is not None:
-            matched = best_probable["candidate"]
-            matched_similarity = best_probable["similarity"]
-            matched_tier = "PROBABLE"
+        # PRIORITY 1: Use EXACT match if available (95%+)
+        if exact_matches:
+            best_exact = max(exact_matches, key=lambda x: x["similarity"])
+            matched = best_exact["candidate"]
+            matched_similarity = best_exact["similarity"]
+            matched_tier = "EXACT"
+            logger.info("Found EXACT match: %s at %.1f%%", matched.get("source"), matched_similarity * 100)
+        # PRIORITY 2: Use HIGH match (60-95%)
+        elif all_matches:
+            best_match = max(all_matches, key=lambda x: x["similarity"])
+            matched = best_match["candidate"]
+            matched_similarity = best_match["similarity"]
+            matched_tier = best_match["tier"]
+            logger.info("No exact match, using similar: %s at %.1f%%", matched.get("source"), matched_similarity * 100)
 
         if matched is None:
             yield _sse("step_error", {
@@ -299,6 +329,28 @@ def run_pipeline_stream(
         except Exception:
             plat_label = matched.get("source", "")
 
+        # Sort all matches by similarity descending
+        all_matches.sort(key=lambda x: x["similarity"], reverse=True)
+        exact_matches.sort(key=lambda x: x["similarity"], reverse=True)
+
+        # Build display lists
+        def build_match_list(matches):
+            result = []
+            for m in matches:
+                c = m["candidate"]
+                try:
+                    m_platform = urlparse(c["url"]).netloc.removeprefix("www.")
+                except Exception:
+                    m_platform = c.get("source", "")
+                result.append({
+                    "source": m_platform,
+                    "url": c.get("url", ""),
+                    "title": c.get("title", ""),
+                    "similarity": round(float(m["similarity"]), 4),
+                    "confidence_tier": m["tier"],
+                })
+            return result
+
         verification_data = {
             "status": "success",
             "matched": True,
@@ -309,9 +361,13 @@ def run_pipeline_stream(
             "title": matched.get("title", ""),
             "image_url": matched.get("image_url", "") or matched.get("thumbnail", ""),
             "evaluated_candidates": evaluated_candidates,
+            "exact_matches": build_match_list(exact_matches),
+            "all_matches": build_match_list(all_matches),
+            "exact_match_count": len(exact_matches),
+            "match_count": len(all_matches),
         }
         yield _sse("step_done", {"step": "verification", "data": verification_data})
-        logger.info("STEP 4/5 — Done: MATCHED [%s] at %.1f%% (%s)", plat_label, matched_similarity * 100, matched_tier)
+        logger.info("STEP 4/5 — Done: %d exact, %d total match(es), best [%s] at %.1f%% (%s)", len(exact_matches), len(all_matches), plat_label, matched_similarity * 100, matched_tier)
     except Exception as exc:
         yield _sse("step_error", {"step": "verification", "error": f"Verification failed: {exc}"})
         yield _sse("pipeline_done", {"success": False, "error": f"Verification failed: {exc}", "uploaded_image_url": uploaded_image_url})

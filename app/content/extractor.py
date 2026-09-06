@@ -94,13 +94,15 @@ def try_candidate_images(
 ) -> list[bytes]:
     """Attempt to fetch image bytes for a candidate.
 
-    Tries ``image_url``, high-res ``og:image``, then ``thumbnail`` in order.
+    Tries ``thumbnail`` first (direct image), then ``image_url``, then ``og:image``.
+    Thumbnail is prioritized because it's the actual image, not a page URL.
     Returns list of successfully fetched byte payloads.
     """
     urls: list[str] = []
-    for key in ("image_url", "thumbnail"):
+    # Try thumbnail FIRST - it's usually the direct image URL
+    for key in ("thumbnail", "image_url"):
         u = candidate.get(key)
-        if u and isinstance(u, str):
+        if u and isinstance(u, str) and u.startswith("http"):
             urls.append(u)
 
     # Extract high-res og:image from candidate page if enabled
