@@ -84,7 +84,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
     probable_threshold = (
         args.probable_threshold
         if args.probable_threshold is not None
-        else getattr(config, "PROBABLE_MATCH_THRESHOLD", 0.52)
+        else getattr(config, "PROBABLE_MATCH_THRESHOLD", 0.45)
     )
     allow_probable = not args.strict and getattr(config, "ALLOW_PROBABLE_MATCH", True)
     max_verify = args.max_verify or config.MAX_CANDIDATES_TO_VERIFY
@@ -189,7 +189,9 @@ def run_pipeline(args: argparse.Namespace) -> int:
 
     to_verify = ranked[:max_verify]
     evaluated_list: list[dict] = []
+    best_high_candidate = None
     best_probable_candidate = None
+    best_probable_exact_candidate = None
 
     for idx, cand in enumerate(to_verify, 1):
         url = cand.get("url", "")
@@ -221,11 +223,12 @@ def run_pipeline(args: argparse.Namespace) -> int:
 
         if tier == "HIGH":
             display.success(f"HIGH MATCH ✓  ({sim*100:.1f}% ≥ {high_threshold*100:.0f}%)")
-            matched = cand
-            matched_face = face
-            matched_similarity = sim
-            matched_tier = "HIGH"
-            break
+            if best_high_candidate is None or sim > best_high_candidate["similarity"]:
+                best_high_candidate = {
+                    "candidate": cand,
+                    "face": face,
+                    "similarity": sim,
+                }
         elif tier == "PROBABLE":
             display.warning(f"PROBABLE MATCH  ({sim*100:.1f}% in [{probable_threshold*100:.0f}%, {high_threshold*100:.0f}%))")
             if best_probable_candidate is None or sim > best_probable_candidate["similarity"]:
@@ -235,16 +238,34 @@ def run_pipeline(args: argparse.Namespace) -> int:
                     "similarity": sim,
                     "tier": "PROBABLE",
                 }
+            if cand.get("is_exact") and (
+                best_probable_exact_candidate is None or sim > best_probable_exact_candidate["similarity"]
+            ):
+                best_probable_exact_candidate = {
+                    "candidate": cand,
+                    "face": face,
+                    "similarity": sim,
+                    "tier": "PROBABLE",
+                }
         else:
             display.info(f"No match ({sim*100:.1f}% < {probable_threshold*100:.0f}%)")
 
-    # If no HIGH match was found, but a PROBABLE match exists and allowed
-    if matched is None and allow_probable and best_probable_candidate is not None:
-        matched = best_probable_candidate["candidate"]
-        matched_face = best_probable_candidate["face"]
-        matched_similarity = best_probable_candidate["similarity"]
-        matched_tier = "PROBABLE"
-        console.print(f"\n      [yellow]Proceeding with highest PROBABLE match: {matched_similarity*100:.1f}%[/]")
+    # Strongest HIGH wins; otherwise prefer an exact image match, then
+    # the strongest PROBABLE overall.
+    if best_high_candidate is not None:
+        matched = best_high_candidate["candidate"]
+        matched_face = best_high_candidate["face"]
+        matched_similarity = best_high_candidate["similarity"]
+        matched_tier = "HIGH"
+        console.print(f"\n      [green]Strongest match: {matched_similarity*100:.1f}%[/]")
+    elif allow_probable:
+        chosen = best_probable_exact_candidate or best_probable_candidate
+        if chosen is not None:
+            matched = chosen["candidate"]
+            matched_face = chosen["face"]
+            matched_similarity = chosen["similarity"]
+            matched_tier = "PROBABLE"
+            console.print(f"\n      [yellow]Proceeding with highest PROBABLE match: {matched_similarity*100:.1f}%[/]")
 
     if matched is None:
         display.error(f"No candidate passed verification (High: ≥{high_threshold:.0%}" + (f", Probable: ≥{probable_threshold:.0%})" if allow_probable else ")"))
@@ -377,7 +398,7 @@ def _tamper_demo(original_payload: dict, registry=None):
         console.print("  → [bold red]TAMPER DETECTED ❌  Hashes differ[/]")
 
 
-def _mock_candidates(input_image_path: str = "samples/virat-kohli-photo-4k.webp") -> list[dict]:
+def _mock_candidates(input_image_path: str = "sample/virat-kohli-photo-4k.webp") -> list[dict]:
     """Synthetic results for offline testing (no network)."""
     return [
         {

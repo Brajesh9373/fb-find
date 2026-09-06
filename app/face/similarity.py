@@ -36,7 +36,7 @@ def get_confidence_tier(
     probable = (
         probable_threshold
         if probable_threshold is not None
-        else getattr(config, "PROBABLE_MATCH_THRESHOLD", 0.52)
+        else getattr(config, "PROBABLE_MATCH_THRESHOLD", 0.45)
     )
     if similarity >= high:
         return CONFIDENCE_HIGH
@@ -60,6 +60,6 @@ def is_probable_match(
     probable = (
         probable_threshold
         if probable_threshold is not None
-        else getattr(config, "PROBABLE_MATCH_THRESHOLD", 0.52)
+        else getattr(config, "PROBABLE_MATCH_THRESHOLD", 0.45)
     )
     return similarity >= probable

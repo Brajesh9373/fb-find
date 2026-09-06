@@ -14,11 +14,10 @@ import cv2
 
 from app import config
 from app.content.canonicalizer import build_canonical_payload
-from app.content.extractor import extract_face_from_candidate
+from app.content.extractor import verify_candidates_concurrent
 from app.content.hashing import fingerprint_canonical
 from app.face.detector import FaceDetector, crop_face
 from app.face.embedder import normalize as norm_emb
-from app.face.similarity import cosine_similarity
 from app.search.lens import GoogleLensSearcher
 from app.search.ranking import is_social, rank_candidates
 
@@ -83,7 +82,7 @@ def run_pipeline_stream(
     prob_threshold = (
         probable_threshold
         if probable_threshold is not None
-        else getattr(config, "PROBABLE_MATCH_THRESHOLD", 0.30)
+        else getattr(config, "PROBABLE_MATCH_THRESHOLD", 0.45)
     )
     max_verify = max_verify or config.MAX_CANDIDATES_TO_VERIFY
 
@@ -207,7 +206,6 @@ def run_pipeline_stream(
         return
 
     # ── Step 4: Verification ────────────────────────────────────────
-    from app.face.similarity import get_confidence_tier
 
     logger.info("STEP 4/5 — Verifying top %d candidates (High>=%.0f%%, Probable>=%.0f%%)...", max_verify, high_threshold * 100, prob_threshold * 100)
     yield _sse("step_started", {"step": "verification", "message": f"Verifying top {max_verify} candidates..."})
@@ -216,19 +214,41 @@ def run_pipeline_stream(
     matched_similarity = 0.0
     matched_tier = "UNMATCHED"
     evaluated_candidates = []
-    best_probable = None
 
     try:
         to_verify = ranked[:max_verify]
+        workers = max(1, min(int(getattr(config, "VERIFY_CONCURRENCY", 4)), len(to_verify)))
 
-        for idx, cand in enumerate(to_verify):
-            yield _sse("step_progress", {
-                "step": "verification",
-                "message": f"Checking candidate {idx + 1}/{len(to_verify)}: {cand.get('source', 'Unknown')}...",
-            })
+        yield _sse("step_progress", {
+            "step": "verification",
+            "message": f"Verifying {len(to_verify)} candidates with {workers} parallel workers...",
+        })
+        logger.info("  Verifying %d candidates (%d parallel workers)...", len(to_verify), workers)
 
-            face, img_bytes = extract_face_from_candidate(cand, detector, query_emb=query_emb)
-            if face is None:
+        parallel = verify_candidates_concurrent(
+            to_verify, detector, query_emb, high_threshold, prob_threshold, max_workers=workers,
+        )
+        by_url: dict[str, dict] = {}
+        for res in parallel:
+            key = (res.get("candidate") or {}).get("url", "")
+            if key not in by_url:
+                by_url[key] = res
+            src = (res.get("candidate") or {}).get("source", "?")
+            if res.get("has_face"):
+                msg = f"  → {src}: {res['similarity']:.1%} ({res['confidence_tier']})"
+                yield _sse("step_progress", {"step": "verification", "message": msg})
+                logger.info("  %s", msg.strip())
+            else:
+                yield _sse("step_progress", {"step": "verification", "message": f"  → {src}: no face found"})
+                logger.info("  [%s]: No face found", src)
+
+        # Report in discovery (ranked) order, but select by strength:
+        # strongest HIGH wins; otherwise best exact PROBABLE, then best PROBABLE.
+        scored_high: list[tuple[float, dict]] = []
+        scored_probable: list[tuple[float, dict, bool]] = []
+        for cand in to_verify:
+            res = by_url.get(cand.get("url", ""))
+            if res is None or not res.get("has_face"):
                 evaluated_candidates.append({
                     "title": cand.get("title", ""),
                     "url": cand.get("url", ""),
@@ -236,49 +256,35 @@ def run_pipeline_stream(
                     "similarity": 0.0,
                     "confidence_tier": "UNMATCHED",
                     "has_face": False,
+                    "is_exact": bool(cand.get("is_exact")),
                 })
-                yield _sse("step_progress", {"step": "verification", "message": f"  → No face found in candidate image"})
-                logger.info("  Candidate %d/%d [%s]: No face found", idx + 1, len(to_verify), cand.get("source", "?"))
                 continue
-
-            sim = cosine_similarity(query_emb, face.embedding)
-            tier = get_confidence_tier(
-                sim, high_threshold=high_threshold, probable_threshold=prob_threshold
-            )
-            eval_entry = {
+            sim = round(float(res["similarity"]), 4)
+            tier = res["confidence_tier"]
+            evaluated_candidates.append({
                 "title": cand.get("title", ""),
                 "url": cand.get("url", ""),
                 "source": cand.get("source", ""),
-                "similarity": round(float(sim), 4),
+                "similarity": sim,
                 "confidence_tier": tier,
                 "has_face": True,
-            }
-            evaluated_candidates.append(eval_entry)
-
-            yield _sse("step_progress", {
-                "step": "verification",
-                "message": f"  → Similarity: {sim:.1%} ({tier})",
+                "is_exact": bool(cand.get("is_exact")),
             })
-            logger.info("  Candidate %d/%d [%s]: %.1f%% — %s", idx + 1, len(to_verify), cand.get("source", "?"), sim * 100, tier)
-
             if tier == "HIGH":
-                matched = cand
-                matched_similarity = sim
-                matched_tier = "HIGH"
-                break
+                scored_high.append((sim, cand))
             elif tier == "PROBABLE":
-                if best_probable is None or sim > best_probable["similarity"]:
-                    best_probable = {
-                        "candidate": cand,
-                        "similarity": sim,
-                        "tier": "PROBABLE",
-                    }
+                scored_probable.append((sim, cand, bool(cand.get("is_exact"))))
 
-        # If no HIGH match was found, but a PROBABLE match exists and allowed
-        if matched is None and allow_probable and best_probable is not None:
-            matched = best_probable["candidate"]
-            matched_similarity = best_probable["similarity"]
-            matched_tier = "PROBABLE"
+        if scored_high:
+            sim, cand = max(scored_high, key=lambda t: t[0])
+            matched, matched_similarity, matched_tier = cand, sim, "HIGH"
+        elif allow_probable and scored_probable:
+            exact = [(s, c) for s, c, e in scored_probable if e]
+            if exact:
+                sim, cand = max(exact, key=lambda t: t[0])
+            else:
+                sim, cand, _ = max(scored_probable, key=lambda t: t[0])
+            matched, matched_similarity, matched_tier = cand, sim, "PROBABLE"
 
         if matched is None:
             yield _sse("step_error", {

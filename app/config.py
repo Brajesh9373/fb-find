@@ -33,8 +33,8 @@ CHAIN_NAME: str = os.getenv("CHAIN_NAME", "Polygon Amoy")
 CURRENCY: str = os.getenv("CURRENCY", "POL")
 
 # ── Face Matching ─────────────────────────────────────────────────────
-FACE_MATCH_THRESHOLD: float = float(os.getenv("FACE_MATCH_THRESHOLD", "0.40"))
-PROBABLE_MATCH_THRESHOLD: float = float(os.getenv("PROBABLE_MATCH_THRESHOLD", "0.30"))
+FACE_MATCH_THRESHOLD: float = float(os.getenv("FACE_MATCH_THRESHOLD", "0.55"))
+PROBABLE_MATCH_THRESHOLD: float = float(os.getenv("PROBABLE_MATCH_THRESHOLD", "0.45"))
 ALLOW_PROBABLE_MATCH: bool = os.getenv("ALLOW_PROBABLE_MATCH", "true").lower() == "true"
 ENABLE_OG_IMAGE_EXTRACTION: bool = os.getenv("ENABLE_OG_IMAGE_EXTRACTION", "true").lower() == "true"
 
@@ -57,7 +57,7 @@ INSIGHTFACE_DET_SIZE: tuple[int, int] = (640, 640)
 
 # ── Search ────────────────────────────────────────────────────────────
 MAX_CANDIDATES: int = int(os.getenv("MAX_CANDIDATES", "30"))
-MAX_CANDIDATES_TO_VERIFY: int = int(os.getenv("MAX_CANDIDATES_TO_VERIFY", "12"))
+MAX_CANDIDATES_TO_VERIFY: int = int(os.getenv("MAX_CANDIDATES_TO_VERIFY", "8"))
 SEARCH_TIMEOUT: int = int(os.getenv("SEARCH_TIMEOUT", "30"))
 VERIFY_CONCURRENCY: int = int(os.getenv("VERIFY_CONCURRENCY", "4"))
 

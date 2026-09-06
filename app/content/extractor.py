@@ -33,7 +33,7 @@ HEADERS = {
 }
 
 
-def fetch_image_bytes(url: str, timeout: int = 15) -> bytes | None:
+def fetch_image_bytes(url: str, timeout: int = 8) -> bytes | None:
     """Download raw bytes for an image URL.  Returns None on failure."""
     try:
         resp = requests.get(url, headers=HEADERS, timeout=timeout, stream=True)
@@ -90,7 +90,7 @@ def fetch_og_image_url(page_url: str, timeout: int = 6) -> str | None:
 
 def try_candidate_images(
     candidate: dict[str, Any],
-    timeout: int = 15,
+    timeout: int = 8,
 ) -> list[bytes]:
     """Attempt to fetch image bytes for a candidate.
 
@@ -107,7 +107,7 @@ def try_candidate_images(
     if getattr(config, "ENABLE_OG_IMAGE_EXTRACTION", True):
         page_url = candidate.get("url")
         if page_url and (page_url.startswith("http://") or page_url.startswith("https://")):
-            og_img = fetch_og_image_url(page_url, timeout=min(6, timeout))
+            og_img = fetch_og_image_url(page_url, timeout=min(4, timeout))
             if og_img and og_img not in urls:
                 # Insert og_image before thumbnail for higher quality face detection
                 urls.insert(1 if len(urls) > 0 else 0, og_img)
@@ -163,6 +163,12 @@ def extract_face_from_candidate(
                 # Multi-face scan on candidate image
                 faces = detector.detect_bytes(data)
                 for f in faces:
+                    # Skip tiny faces: their embeddings are noisy and each
+                    # extra comparison is another false-accept lottery ticket.
+                    bw = f.bbox[2] - f.bbox[0]
+                    bh = f.bbox[3] - f.bbox[1]
+                    if min(bw, bh) < 64:
+                        continue
                     sim = cosine_similarity(query_emb, f.embedding)
                     if sim > best_similarity:
                         best_similarity = sim
