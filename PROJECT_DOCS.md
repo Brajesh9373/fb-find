@@ -162,7 +162,7 @@ hhgoa_t3/
 │   ├── test_search.py           # Search parser + ranking tests
 │   └── test_blockchain.py       # Blockchain verification tests
 │
-├── samples/                     # Sample images for testing
+├── sample/                      # Sample images for testing
 ├── uploads/                     # Uploaded images (gitignored)
 ├── run_web.py                   # Flask server entry point
 ├── start.bat                    # Windows launcher menu
@@ -231,12 +231,12 @@ USER                          SERVER                        EXTERNAL
  │                    ═══ STEP 4: VERIFICATION ═══            │
  │                    ┌─────────┴─────────┐                    │
  │                    │ For each candidate │                   │
- │                    │ (top 12):          │                   │
+  │                    │ (top 8):           │                   │
  │                    │  1. Download image │ ── candidate ───> │
  │                    │  2. Detect face    │ <── image bytes ──│
  │                    │  3. Compare cosine │                   │
  │                    │     similarity     │                   │
- │                    │  4. If sim >= 0.40 │                   │
+  │                    │  4. If sim >= 0.55 │                   │
  │                    │     → MATCH        │                   │
  │                    └─────────┬─────────┘                    │
  │                              │                              │
@@ -400,9 +400,9 @@ This dict is serialized to deterministic JSON (sorted keys, no whitespace, UTF-8
 
 - `cosine_similarity(a, b)` — standard cosine similarity (float64)
 - Confidence tiers:
-  - **HIGH**: similarity ≥ 0.40 (configurable via `FACE_MATCH_THRESHOLD`)
-  - **PROBABLE**: similarity ≥ 0.30 (configurable via `PROBABLE_MATCH_THRESHOLD`)
-  - **UNMATCHED**: similarity < 0.30
+  - **HIGH**: similarity ≥ 0.55 (configurable via `FACE_MATCH_THRESHOLD`)
+  - **PROBABLE**: similarity ≥ 0.45 (configurable via `PROBABLE_MATCH_THRESHOLD`)
+  - **UNMATCHED**: similarity < 0.45
 - `is_match(similarity)` — boolean for HIGH tier
 - `is_probable_match(similarity)` — boolean for PROBABLE tier
 
@@ -429,12 +429,12 @@ This dict is serialized to deterministic JSON (sorted keys, no whitespace, UTF-8
 - Deduplicates by URL (preserves first occurrence)
 - Re-assigns sequential position numbers after dedup
 
-#### `ranking.py` — Social Platform Priority Ranking
+#### `ranking.py` — Equal Social Ranking
 
-- `PRIORITY_MAP`: Instagram=100, Facebook=90, X/Twitter=80, LinkedIn=70, Threads=60, TikTok=50, YouTube=40, Pinterest=30
-- `rank_candidates(candidates)` — sort by (social_score DESC, position ASC)
+- `SOCIAL_DOMAINS`: membership set for all social platforms (no per-platform weights)
+- `rank_candidates(candidates)` — sort by (is_exact DESC, social_score DESC, position ASC); exact image matches first, every social scores 1, non-social 0
 - `is_social(url)` — boolean check if URL matches known social domain
-- Social platforms appear first in results, then by original SerpApi ranking
+- Social platforms appear first in results, ties keep original SerpApi discovery order — no platform is preferred
 
 ### 4.3 Content Module (`app/content/`)
 
@@ -591,11 +591,10 @@ CONTRACT_ADDRESS=0x082F...                 # Deployed ContentRegistry address
 
 # Optional overrides
 POLYGON_RPC_URL=https://rpc-amoy.polygon.technology
-FACE_MATCH_THRESHOLD=0.40                  # HIGH confidence threshold
-FACE_MATCH_THRESHOLD=0.65                  # Default in config.py
-PROBABLE_MATCH_THRESHOLD=0.30              # PROBABLE confidence threshold
+FACE_MATCH_THRESHOLD=0.55                  # HIGH confidence threshold (default in config.py)
+PROBABLE_MATCH_THRESHOLD=0.45              # PROBABLE confidence threshold
 MAX_CANDIDATES=30                          # Max candidates from search
-MAX_CANDIDATES_TO_VERIFY=12                # Max candidates to face-verify
+MAX_CANDIDATES_TO_VERIFY=8                 # Max candidates to face-verify
 SEARCH_TIMEOUT=30                          # SerpApi timeout (seconds)
 CHAIN_ID=80002                             # Polygon Amoy testnet
 ```
@@ -678,17 +677,17 @@ Each pipeline step has its own result card:
 
 ```bash
 # Basic run
-python -m app.main --image samples/test.jpg
+python -m app.main --image sample/virat-kohli-photo-4k.webp
 
 # With options
-python -m app.main --image samples/test.jpg \
+python -m app.main --image sample/virat-kohli-photo-4k.webp \
     --threshold 0.60 \
     --skip-blockchain \
     --tamper-demo \
     --verbose
 
 # Offline demo (no SerpApi key needed)
-python -m app.main --image samples/test.jpg \
+python -m app.main --image sample/virat-kohli-photo-4k.webp \
     --mock-search \
     --skip-blockchain \
     --tamper-demo
@@ -699,8 +698,8 @@ python -m app.main --image samples/test.jpg \
 | Argument | Default | Description |
 |----------|---------|-------------|
 | `--image` | (required) | Input face image path |
-| `--threshold` | 0.40 | HIGH confidence threshold |
-| `--probable-threshold` | 0.30 | PROBABLE confidence threshold |
+| `--threshold` | 0.55 | HIGH confidence threshold |
+| `--probable-threshold` | 0.45 | PROBABLE confidence threshold |
 | `--strict` | false | Disable probable match fallback |
 | `--skip-blockchain` | false | Skip on-chain registration |
 | `--tamper-demo` | false | Demonstrate tamper detection |
@@ -856,7 +855,7 @@ Checks: env vars, SerpApi key validity, RPC endpoints, wallet balance, contract 
 - **CPU-only**: Face detection runs on CPU (ONNX Runtime). No GPU acceleration.
 - **Single face**: Currently processes only the first (best) face from the input image.
 - **Sequential verification**: Candidate verification runs sequentially (not in parallel), even though `verify_candidates_concurrent()` exists.
-- **Threshold sensitivity**: `FACE_MATCH_THRESHOLD=0.40` is relatively low — may produce false positives with similar-looking people.
+- **Threshold sensitivity**: `FACE_MATCH_THRESHOLD=0.55` with strongest-match selection keeps lookalikes out — genuine but hard matches (sunglasses, old photos) may need `--threshold` tuning.
 - **Stale User-Agent**: Hardcoded Chrome 122 on Linux for candidate image downloads — will become outdated.
 - **No rate limiting**: No outbound request rate limiting to candidate websites.
 - **No upload cleanup**: Orphaned files accumulate in `/uploads/` if process crashes.

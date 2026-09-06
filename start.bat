@@ -75,8 +75,8 @@ echo Run CLI Pipeline
 echo ============================================================
 echo Usage: python -m app.main --image ^<path^> [--mock-search] [--skip-blockchain] [--tamper-demo]
 echo.
-set /p img_path=Enter image path (default: samples/virat-kohli-photo-4k.webp): 
-if "%img_path%"=="" set img_path=samples/virat-kohli-photo-4k.webp
+set /p img_path=Enter image path (default: sample/virat-kohli-photo-4k.webp): 
+if "%img_path%"=="" set img_path=sample/virat-kohli-photo-4k.webp
 
 echo.
 echo Search Mode:
