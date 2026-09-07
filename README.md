@@ -3,492 +3,602 @@
 > **AI-powered face discovery with tamper-evident blockchain verification.**
 
 ![Python](https://img.shields.io/badge/Python-3.x-3776AB?logo=python&logoColor=white)
-![Flask](https://img.shields.io/badge/Flask-SSE_streaming-000000?logo=flask&logoColor=white)
+![Flask](https://img.shields.io/badge/Flask-Web_Framework-000000?logo=flask&logoColor=white)
 ![Solidity](https://img.shields.io/badge/Solidity-0.8.20-363636?logo=solidity&logoColor=white)
-![Polygon Amoy](https://img.shields.io/badge/Polygon-Amoy_Testnet-8247E5?logo=polygon&logoColor=white)
-![InsightFace](https://img.shields.io/badge/InsightFace-buffalo__l_%2B_ArcFace-blue)
+![Polygon](https://img.shields.io/badge/Polygon-Amoy_Testnet-8247E5?logo=polygon&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
-Give it a face image: the pipeline finds the same person in a real web/social result, proves the match with face similarity, and anchors the content fingerprint on Polygon Amoy. No paid services, no heavy infra.
+## What Is This?
+
+**Identity Signal** is a system that:
+1. **Detects a face** in an uploaded image
+2. **Searches the web** to find matching faces on social media and websites
+3. **Verifies the match** using AI face comparison
+4. **Anchors the proof** on the blockchain for tamper-evident verification
 
 ```
-face.jpg → InsightFace (ArcFace) → Google Lens (SerpApi free) → social ranking
-       → face re-check (cosine ≥ 0.55) → canonical JSON → SHA-256 (bytes32)
-       → Polygon Amoy (ContentRegistry) → re-verify → tamper demo
+Your Photo → Find Face → Search Web → Verify Match → Blockchain Proof
 ```
 
-Built for **HH GOA 2026 — Shortlisting Task 3**. Face scan, web/social search, matching post, blockchain fingerprint, and re-verification are all visible in one run — via the Flask web UI or the CLI.
-
-### Contents
-
-- [Why this stack](#why-this-stack-all-free--reliable)
-- [What it does](#what-it-does)
-- [Architecture](#architecture)
-- [Data flow](#data-flow)
-- [End-to-end sequence](#end-to-end-sequence)
-- [Pipeline states](#pipeline-states)
-- [Blockchain verification](#blockchain-verification)
-- [Quick start](#quick-start)
-- [Web API](#web-api)
-- [Face matching](#face-matching)
-- [Search strategy](#search-strategy)
-- [Project structure](#project-structure)
-- [Tests & diagnostics](#tests--diagnostics)
-- [Limitations](#limitations-honest)
-- [Security notes](#security-notes)
-- [Roadmap](#roadmap)
-- [License & credits](#license--credits)
+**No paid services. No heavy infrastructure. Just open-source tools.**
 
 ---
 
-## Why this stack (all free & reliable)
+## Table of Contents
 
-| Need | Choice | Why free & reliable |
-|---|---|---|
-| Face detect + embed | **InsightFace `buffalo_l` + ArcFace (ONNX Runtime CPU)** | MIT, runs locally, no API, no GPU, SOTA accuracy |
-| Reverse image | **Google Lens via SerpApi** (`engine=google_lens`) | 100 searches/month free, no card, genuine live search every run. Fallback `--mock-search` for offline |
-| Image hosting for search | **catbox.moe** | Free temporary public URL so Lens can fetch the query image |
-| Similarity | Cosine on L2-normalised embeddings, `FACE_MATCH_THRESHOLD=0.55`, `PROBABLE_MATCH_THRESHOLD=0.45` (env-tunable) | — |
-| Fingerprint | Canonical JSON (`sort_keys`, `separators=(',',':')`, UTF-8) → SHA-256 → `0x…` bytes32 | Deterministic, tiny on-chain cost |
-| Blockchain | **Solidity 0.8.20 + web3.py + Polygon Amoy** (chainId 80002) | Free testnet POL via faucet, public RPC with automatic fallbacks, ~2-sec blocks |
-| Web UI | **Flask + SSE streaming** | Live five-stage progress in the browser, no build step |
-| CLI | **Rich** | Single terminal, clear 5-step flow for demo recording |
-
-> Removed on purpose: paid search pools, hosted DBs, inference APIs, JS-framework frontends, local JSON "blockchain". They hide the 3 required stages and need paid keys. This repo keeps only what the spec asks for.
+- [Quick Start (5 Minutes)](#quick-start-5-minutes)
+- [How It Works](#how-it-works)
+- [Features](#features)
+- [System Architecture](#system-architecture)
+- [Pipeline Steps](#pipeline-steps)
+- [Search Strategy](#search-strategy)
+- [Blockchain Verification](#blockchain-verification)
+- [Configuration](#configuration)
+- [API Reference](#api-reference)
+- [Project Structure](#project-structure)
+- [Limitations](#limitations)
+- [Security Notes](#security-notes)
+- [License](#license)
 
 ---
 
-## What it does
+## Quick Start (5 Minutes)
 
-### 01 — Detect the face
+### Prerequisites
 
-**InsightFace** (`buffalo_l`) detects faces locally and **ArcFace** generates a **512-dimensional embedding**.
+- Python 3.8+
+- A SerpApi key (free at [serpapi.com](https://serpapi.com/users/sign_up))
+- A Polygon Amoy wallet with free POL (from [faucet.polygon.technology](https://faucet.polygon.technology/))
 
-```text
-Input Image → Face Detection → Bounding Box + Confidence → 512-D ArcFace Embedding
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/Brajesh9373/fb-find.git
+cd fb-find
+
+# Create virtual environment
+python -m venv .venv
+source .venv/bin/activate  # Linux/Mac
+# or: .venv\Scripts\activate  # Windows
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Configure environment
+cp .env.example .env
+# Edit .env with your API keys (see below)
 ```
 
-### 02 — Search the web
+### Configure .env
 
-The face crop is uploaded to `catbox.moe` for a public URL, which is sent to **Google Lens through SerpApi** for genuine reverse-image discovery. Results are deduplicated and social platforms are ranked first.
+```env
+# Required: SerpApi key (free at serpapi.com)
+SERPAPI_KEY=your_serpapi_key_here
 
-### 03 — Verify candidate faces
+# Required: Polygon Amoy wallet private key
+PRIVATE_KEY=0x_your_wallet_private_key
 
-Search results are treated as **candidates**, not proof. Each candidate image is re-checked:
+# Optional: Contract address (or deploy your own)
+CONTRACT_ADDRESS=0x082F1e254E3E68fd6b15Df24642607dfCEc47252
 
-```text
-Candidate Page → Candidate Image → Face Detection → ArcFace Embedding
-    → Cosine Similarity → Confidence Tier (HIGH / PROBABLE / UNMATCHED)
+# Optional: Face matching thresholds
+FACE_MATCH_THRESHOLD=0.60
+PROBABLE_MATCH_THRESHOLD=0.45
 ```
 
-This second layer stops a merely similar-looking image from counting as the same person.
+### Run the System
 
-### 04 — Fingerprint the match
+```bash
+# Start web server
+python run_web.py
+```
 
-The verified match becomes deterministic JSON and is hashed with **SHA-256**:
+Open http://localhost:5000 in your browser and upload a face image.
 
+---
+
+## How It Works
+
+### The 5-Stage Pipeline
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         UPLOAD FACE IMAGE                               │
+└─────────────────────────────────┬───────────────────────────────────────┘
+                                  │
+                                  ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  STAGE 1: FACE DETECTION                                                │
+│  • Detects face in image using InsightFace                              │
+│  • Extracts bounding box and confidence score                           │
+│  • Crops face region for search                                         │
+└─────────────────────────────────┬───────────────────────────────────────┘
+                                  │
+                                  ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  STAGE 2: FACE EMBEDDING                                                │
+│  • Converts face to 512-dimensional vector (ArcFace)                    │
+│  • L2-normalized for cosine similarity comparison                       │
+└─────────────────────────────────┬───────────────────────────────────────┘
+                                  │
+                                  ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  STAGE 3: WEB SEARCH                                                    │
+│  • Searches BOTH full image AND cropped face                            │
+│  • Uses Google Lens + Google Reverse Image + Yandex                     │
+│  • Merges and deduplicates results                                      │
+│  • Ranks social media platforms higher                                  │
+└─────────────────────────────────┬───────────────────────────────────────┘
+                                  │
+                                  ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  STAGE 4: FACE VERIFICATION                                             │
+│  • Downloads candidate images from search results                       │
+│  • Detects faces in each candidate                                      │
+│  • Compares embeddings using cosine similarity                          │
+│  • Assigns confidence tier: HIGH / PROBABLE / UNMATCHED                 │
+└─────────────────────────────────┬───────────────────────────────────────┘
+                                  │
+                                  ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  STAGE 5: BLOCKCHAIN PROOF                                              │
+│  • Creates canonical JSON of matched result                             │
+│  • Generates SHA-256 fingerprint                                        │
+│  • Registers fingerprint on Polygon Amoy                                │
+│  • Re-verifies: local hash == on-chain hash                             │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Features
+
+### Core Features
+
+| Feature | Description |
+|---------|-------------|
+| **Face Detection** | InsightFace with buffalo_l model, 512-dim ArcFace embeddings |
+| **Hybrid Search** | Google Lens + Google Reverse Image + Yandex (3 engines) |
+| **Dual Search** | Searches both full image AND cropped face for maximum coverage |
+| **Face Verification** | Cosine similarity with configurable thresholds |
+| **Blockchain Proof** | SHA-256 fingerprint on Polygon Amoy testnet |
+| **Tamper Detection** | Demonstrates hash mismatch when data is modified |
+| **Live Progress** | SSE streaming shows real-time pipeline status |
+| **Web UI** | Drag-and-drop upload with dark theme |
+| **CLI Mode** | Rich terminal output for demos |
+
+### Confidence Tiers
+
+| Tier | Threshold | Meaning |
+|------|-----------|---------|
+| **HIGH** | ≥ 60% | Strong face match - same person |
+| **PROBABLE** | 45-59% | Possible match - similar face |
+| **UNMATCHED** | < 45% | No match - different person |
+
+---
+
+## System Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        USER INTERFACE                            │
+│  ┌─────────────────────┐    ┌─────────────────────┐            │
+│  │   Flask Web UI      │    │   Rich CLI          │            │
+│  │   (SSE Streaming)   │    │   (Terminal)        │            │
+│  └─────────┬───────────┘    └─────────┬───────────┘            │
+└────────────┼──────────────────────────┼─────────────────────────┘
+             │                          │
+             └──────────┬───────────────┘
+                        │
+                        ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      PIPELINE LAYER                              │
+│                                                                  │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐        │
+│  │  Face    │→│ Embedding│→│  Search  │→│ Verify   │        │
+│  │  Detect  │  │          │  │          │  │          │        │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘        │
+│       │              │             │             │               │
+│       ▼              ▼             ▼             ▼               │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │              Blockchain Registration                      │   │
+│  └──────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+             │                          │
+             ▼                          ▼
+┌──────────────────────┐    ┌──────────────────────┐
+│   InsightFace        │    │   SerpApi            │
+│   (Local)            │    │   (Google Lens)      │
+└──────────────────────┘    └──────────────────────┘
+             │                          │
+             ▼                          ▼
+┌──────────────────────┐    ┌──────────────────────┐
+│   catbox.moe         │    │   Polygon Amoy       │
+│   (Image Hosting)    │    │   (Blockchain)       │
+└──────────────────────┘    └──────────────────────┘
+```
+
+---
+
+## Pipeline Steps
+
+### Stage 1: Face Detection
+
+**What happens:**
+- InsightFace `buffalo_l` model detects faces in the image
+- Returns bounding box coordinates and confidence score
+- Crops the face region with padding for search
+
+**Output:**
 ```json
 {
-  "url": "matched page URL",
-  "platform": "source domain",
-  "title": "page title",
-  "image_url": "matched image URL",
-  "similarity": 0.8231
+  "faces_count": 1,
+  "confidence": 0.9025,
+  "bbox": [146, 88, 356, 368],
+  "embedding_dim": 512
 }
 ```
 
-The fingerprint is stored as a Solidity `bytes32`. Only the 32-byte hash goes on-chain — never the image.
+### Stage 2: Face Embedding
 
-### 05 — Anchor + re-verify on blockchain
+**What happens:**
+- ArcFace converts the face crop into a 512-dimensional vector
+- Vector is L2-normalized for cosine similarity comparison
 
-The fingerprint is registered in `ContentRegistry.sol` on **Polygon Amoy** (hash, registrant, timestamp, block number). The record is read back and compared locally:
+**Output:**
+```json
+{
+  "status": "success",
+  "norm": 1.0000
+}
+```
 
-```text
-Local Hash == On-Chain Hash  →  VERIFIED ✓
-Local Hash != On-Chain Hash  →  TAMPERED ❌
+### Stage 3: Web Search
+
+**What happens:**
+1. Uploads image to catbox.moe for public URL
+2. Searches with **cropped face** (finds similar faces)
+3. Searches with **full image** (finds similar scenes)
+4. Uses 3 search engines: Google Lens, Google Reverse Image, Yandex
+5. Merges results and removes duplicates
+6. Ranks social platforms higher (Instagram > Facebook > X > ...)
+
+**Output:**
+```json
+{
+  "candidates_count": 67,
+  "social_count": 25,
+  "face_crop_count": 45,
+  "full_image_count": 52,
+  "candidates": [...]
+}
+```
+
+### Stage 4: Face Verification
+
+**What happens:**
+- Downloads top candidate images
+- Detects faces in each candidate
+- Compares embeddings using cosine similarity
+- Assigns confidence tier to each match
+
+**Output:**
+```json
+{
+  "matched": true,
+  "platform": "instagram.com",
+  "similarity": 0.830,
+  "confidence_tier": "HIGH",
+  "all_matches": [
+    {"source": "instagram.com", "similarity": 0.830, "tier": "HIGH"},
+    {"source": "facebook.com", "similarity": 0.716, "tier": "HIGH"}
+  ]
+}
+```
+
+### Stage 5: Blockchain Proof
+
+**What happens:**
+1. Creates canonical JSON of matched result
+2. Generates SHA-256 fingerprint
+3. Registers fingerprint on Polygon Amoy smart contract
+4. Reads back on-chain record
+5. Compares local hash with on-chain hash
+
+**Output:**
+```json
+{
+  "verified": true,
+  "content_hash": "0x28bd86ce532835d48650206db095d9227f75da9f6df877d28166679a0105830e",
+  "tx_hash": "0x...",
+  "block_number": 46802087,
+  "tamper_demo": {
+    "original_hash": "0x28bd...",
+    "tampered_hash": "0x4783...",
+    "hashes_equal": false
+  }
+}
 ```
 
 ---
 
-## Architecture
+## Search Strategy
 
-```mermaid
-flowchart TB
-    subgraph UI["USER INTERFACE"]
-        direction LR
-        WebUI["Flask Web UI<br/>(SSE live progress)"]
-        CLI["Rich CLI"]
-    end
+### Multi-Engine Search
 
-    subgraph Pipeline["PIPELINE LAYER"]
-        direction LR
-        P1["01 Face Detection"] --> P2["02 Embedding"] --> P3["03 Google Lens Search"] --> P4["04 Candidate Verification"] --> P5["05 Blockchain Registration<br/>+ Re-verification"]
-    end
+The system uses **3 search engines** for maximum coverage:
 
-    subgraph External["EXTERNAL COMPONENTS"]
-        direction LR
-        E1["InsightFace"]
-        E2["SerpApi / Google Lens"]
-        E3["Polygon Amoy<br/>Smart Contract"]
-        E4["catbox.moe"]
-        E5["Candidate Websites"]
-    end
+| Engine | Source | Strength |
+|--------|--------|----------|
+| Google Lens | SerpApi | Visual similarity |
+| Google Reverse Image | SerpApi | Exact matches |
+| Yandex Images | SerpApi | Face-focused |
 
-    UI --> Pipeline --> External
+### Dual Search
+
+The system searches with **both**:
+
+1. **Cropped Face** - Finds similar faces (same person, different photos)
+2. **Full Image** - Finds similar scenes (same context, background)
+
+Results are merged and deduplicated. Candidates found by **both** searches get higher priority.
+
+### Social Platform Priority
+
+Results are ranked with social platforms first:
+
+```
+Instagram > Facebook > X/Twitter > LinkedIn > TikTok > YouTube > Pinterest
 ```
 
 ---
 
-## Data flow
+## Blockchain Verification
 
-```mermaid
-flowchart LR
-    A["Face Image"] --> B["01 · Face Detection"]
-    B --> C["02 · ArcFace Embedding<br/>512-D Vector"]
-    C --> D["03 · Reverse Image Search<br/>Google Lens / SerpApi"]
-    D --> E["Candidate Results"]
-    E --> F["04 · Candidate Verification"]
-    F --> G{"Similarity ≥ Threshold?"}
-    G -- "No" --> E
-    G -- "Yes" --> H["Verified Match"]
-    H --> I["Canonical Metadata"]
-    I --> J["SHA-256 Fingerprint"]
-    J --> K["05 · Polygon Amoy"]
-    K --> L["Read On-Chain Record"]
-    L --> M{"Local Hash = On-Chain Hash?"}
-    M -- "Yes" --> N["VERIFIED"]
-    M -- "No" --> O["TAMPERED"]
-```
+### Smart Contract
 
----
-
-## End-to-end sequence
-
-```mermaid
-sequenceDiagram
-    actor User
-    participant UI as Web UI / CLI
-    participant Face as InsightFace
-    participant Host as catbox.moe
-    participant Lens as SerpApi / Google Lens
-    participant Sites as Candidate Sites
-    participant Chain as Polygon Amoy
-
-    User->>UI: Upload face image
-    UI->>Face: Detect face
-    Face-->>UI: bbox + confidence + embedding
-
-    UI->>Host: Upload face crop
-    Host-->>UI: Public image URL
-
-    UI->>Lens: Reverse-image search
-    Lens-->>UI: Visual matches
-
-    UI->>Sites: Fetch candidate image
-    Sites-->>UI: Candidate image bytes
-
-    UI->>Face: Detect candidate face(s)
-    Face-->>UI: Candidate embedding(s)
-
-    UI->>UI: Cosine similarity → strongest verified match
-    UI->>UI: Canonical payload → SHA-256 fingerprint
-
-    UI->>Chain: register(bytes32 hash)
-    Chain-->>UI: Transaction receipt
-
-    UI->>Chain: verify / getRecord(hash)
-    Chain-->>UI: On-chain record
-
-    UI->>UI: Compare local hash ↔ chain hash
-    UI-->>User: Verified / Tampered
-```
-
----
-
-## Pipeline states
-
-```mermaid
-stateDiagram-v2
-    [*] --> Uploaded
-    Uploaded --> FaceDetection
-    FaceDetection --> Embedding
-    Embedding --> WebSearch
-    WebSearch --> Verification
-    Verification --> Blockchain
-    Blockchain --> ReVerification
-    ReVerification --> Verified
-    ReVerification --> Tampered
-
-    FaceDetection --> Error
-    Embedding --> Error
-    WebSearch --> Error
-    Verification --> Error
-    Blockchain --> Error
-
-    Verified --> [*]
-    Tampered --> [*]
-    Error --> [*]
-```
-
-The web UI streams these states as Server-Sent Events so the run is observable instead of a blank loader:
-
-```text
-step_started → step_progress → step_done → … → pipeline_done
-```
-
----
-
-## Blockchain verification
-
-```mermaid
-flowchart TD
-    A["Matched Post Metadata"] --> B["Canonical JSON"]
-    B --> C["SHA-256"]
-    C --> D["bytes32"]
-    D --> E["ContentRegistry.register()"]
-    E --> F["Polygon Amoy"]
-    F --> G["On-chain Record"]
-    G --> H["Re-compute Local Hash"]
-    H --> I{"Hashes Equal?"}
-    I -->|Yes| J["Verified Integrity"]
-    I -->|No| K["Tampering Detected"]
-```
-
-The chain stores the **fingerprint**, not the image — it is an integrity anchor, not a truth oracle for the source page:
-
-```text
-URL / Platform / Title / Image URL / Similarity
-                  ↓
-           Canonical JSON → SHA-256 → bytes32 → Polygon Amoy
-```
-
-The `--tamper-demo` flag modifies one field and re-hashes to show the mismatch (`0x8f31… != 0x19ab… → TAMPER DETECTED`).
-
-### Smart contract
-
-`contracts/ContentRegistry.sol` (MIT) stores a `Record { hash, registrant, timestamp, blockNumber, exists }`:
+**ContentRegistry.sol** stores fingerprint records on Polygon Amoy:
 
 ```solidity
-register(bytes32 contentHash)                    // write
-verify(bytes32) → bool                           // read
-getRecord(bytes32) → (hash, registrant, timestamp, blockNumber, exists)
-totalRecords() → uint256
-event ContentRegistered(bytes32 indexed, address indexed, uint256, uint256)
+struct Record {
+    bytes32 contentHash;    // SHA-256 fingerprint
+    address registrant;     // Wallet that registered
+    uint256 timestamp;      // Registration time
+    uint256 blockNumber;    // Block number
+    bool exists;            // Existence flag
+}
 ```
 
-| | |
-|---|---|
+### Contract Functions
+
+| Function | Type | Description |
+|----------|------|-------------|
+| `register(bytes32)` | Write | Register a new fingerprint |
+| `verify(bytes32)` | Read | Check if hash exists |
+| `getRecord(bytes32)` | Read | Get full record details |
+| `totalRecords()` | Read | Get total registrations |
+
+### Network Details
+
+| Property | Value |
+|----------|-------|
 | Network | Polygon Amoy Testnet |
 | Chain ID | 80002 |
 | Currency | POL (free via faucet) |
-| RPC | Public endpoint with automatic fallbacks (no key needed) |
 | Explorer | https://amoy.polygonscan.com |
-| Faucet | https://faucet.polygon.technology/ (select Amoy) |
-| Deployed contract | `0x082F1e254E3E68fd6b15Df24642607dfCEc47252` |
+| Faucet | https://faucet.polygon.technology/ |
+
+### Verification Process
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│  Matched Post   │────▶│  Canonical JSON │────▶│   SHA-256 Hash  │
+└─────────────────┘     └─────────────────┘     └────────┬────────┘
+                                                         │
+                                                         ▼
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│  VERIFIED ✓     │◀────│  Compare Hashes │◀────│  Register on    │
+│  (or TAMPERED)  │     │                 │     │  Polygon Amoy   │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+```
 
 ---
 
-## Quick start
+## Configuration
 
-```bash
-git clone https://github.com/Brajesh9373/fb-find.git
-cd fb-find
-git checkout pipeline-check
+### Environment Variables
 
-# Windows
-python -m venv .venv
-.venv\Scripts\activate
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `SERPAPI_KEY` | Yes | - | SerpApi key (free at serpapi.com) |
+| `PRIVATE_KEY` | Yes | - | Polygon wallet private key |
+| `CONTRACT_ADDRESS` | No | Pre-deployed | Smart contract address |
+| `POLYGON_RPC_URL` | No | drpc.org | RPC endpoint |
+| `CHAIN_ID` | No | 80002 | Polygon Amoy chain ID |
+| `FACE_MATCH_THRESHOLD` | No | 0.60 | HIGH match threshold |
+| `PROBABLE_MATCH_THRESHOLD` | No | 0.45 | PROBABLE match threshold |
+| `MAX_CANDIDATES` | No | 30 | Max search results |
+| `MAX_CANDIDATES_TO_VERIFY` | No | 12 | Max candidates to check |
+| `SEARCH_TIMEOUT` | No | 30 | Search timeout (seconds) |
+| `INSIGHTFACE_MODEL` | No | buffalo_l | Face model (buffalo_l, buffalo_s) |
 
-# macOS / Linux
-python3 -m venv .venv
-source .venv/bin/activate
+### Threshold Tuning
 
-pip install -r requirements.txt
-cp .env.example .env   # Windows: copy .env.example .env
-# edit .env — see below
-```
-
-> First run downloads the InsightFace model to `~/.insightface/` (~300 MB, once).
-
-### 1. Free keys (1 minute)
-
-**SerpApi (Google Lens)** — free, no card: https://serpapi.com/users/sign_up → Dashboard → API Key → `SERPAPI_KEY` in `.env`.
-
-**Polygon Amoy POL** — free: create a throwaway wallet (e.g. MetaMask) → https://faucet.polygon.technology/ → select **Amoy** → fund it → wallet private key → `PRIVATE_KEY` in `.env` (never commit it).
-
-`.env` essentials:
+Lower thresholds = more matches (but more false positives)
+Higher thresholds = fewer matches (but more accurate)
 
 ```env
-SERPAPI_KEY=your_serpapi_key_here
-PRIVATE_KEY=0x_your_throwaway_wallet_key
-CONTRACT_ADDRESS=0x082F1e254E3E68fd6b15Df24642607dfCEc47252
-POLYGON_RPC_URL=https://polygon-amoy.drpc.org
-CHAIN_ID=80002
-FACE_MATCH_THRESHOLD=0.55
+# Strict (fewer, more accurate matches)
+FACE_MATCH_THRESHOLD=0.70
+PROBABLE_MATCH_THRESHOLD=0.55
+
+# Balanced (default)
+FACE_MATCH_THRESHOLD=0.60
 PROBABLE_MATCH_THRESHOLD=0.45
-MAX_CANDIDATES=30
-MAX_CANDIDATES_TO_VERIFY=8
-```
 
-### 2. Deploy contract (free, or reuse the address above)
-
-```bash
-python scripts/deploy.py            # compiles + deploys, prints address → .env
-python scripts/deploy.py --dry-run  # compile only
-# Remix alternative: https://remix.ethereum.org → paste contracts/ContentRegistry.sol
-# → Injected Provider (MetaMask on Amoy) → Deploy → copy address
-```
-
-### 3. Run it
-
-```bash
-# Web UI with live five-stage progress
-python run_web.py                   # → http://127.0.0.1:5000 (or start.bat → option 1)
-
-# Full CLI: face + live search + on-chain
-python -m app.main --image sample/virat-kohli-photo-4k.webp --tamper-demo
-
-# Face + search only (no blockchain)
-python -m app.main --image sample/virat-kohli-photo-4k.webp --skip-blockchain
-
-# Fully offline (no keys) — mock candidates
-python -m app.main --image sample/virat-kohli-photo-4k.webp --mock-search --skip-blockchain --tamper-demo
-
-# Tune threshold / verbosity
-python -m app.main --image sample/virat-kohli-photo-4k.webp --threshold 0.60 --verbose
-```
-
-**Expected CLI:**
-
-```
-╭──────────────────────────────────────────╮
-│  FACE → WEB → BLOCKCHAIN · HH GOA 2026   │
-╰──────────────────────────────────────────╯
-
-[1/5] Detecting face...          ✓ bbox=[...] 98.2%
-[2/5] Generating embedding...    ✓ dim=512
-[3/5] Searching web...           ✓ 12 candidates, 4 social
-        #  Source         Title
-        1  instagram.com  Technology Conference 2026
-[4/5] Verifying candidates...
-        Candidate #1  87.4%  ✓ MATCH
-        ┌─ MATCH DISCOVERED ✓ ─┐  instagram.com  87.4%
-[5/5] SHA-256...                 ✓ 0x8f31c9...
-        Network: Polygon Amoy  Tx: 0x7a91...  Block: 12345678
-
-        BLOCKCHAIN RE-VERIFICATION
-        Local: 0x8f31c9...  Chain: 0x8f31c9...  ✓ VERIFIED
-
-        ── TAMPER DEMO ──  title "2026"→"2027"  0x8f31... != 0x19ab...  ❌ TAMPER DETECTED
+# Lenient (more matches, more false positives)
+FACE_MATCH_THRESHOLD=0.50
+PROBABLE_MATCH_THRESHOLD=0.35
 ```
 
 ---
 
-## Web API
+## API Reference
 
-| Endpoint | Description |
-|---|---|
-| `GET /` | Web interface (upload, live pipeline, signal report) |
-| `GET /api/health` | Health check → `{"status": "ok"}` |
-| `POST /api/analyze` | Image upload → pipeline via SSE stream |
+### Endpoints
 
-Form fields: `image` (file, required), `threshold`, `skip_blockchain`, `tamper_demo`, `mock_search`. The response streams `face_detection → embedding → web_search → verification → blockchain`, and the Blockchain proof card surfaces the **final matched link** (most-similar source URL).
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | Web interface |
+| GET | `/api/health` | Health check |
+| POST | `/api/analyze` | Run pipeline (SSE stream) |
+
+### POST /api/analyze
+
+**Request (multipart/form-data):**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `image` | File | Yes | Face image (JPG, PNG, WebP) |
+| `threshold` | Float | No | Override match threshold |
+| `skip_blockchain` | Boolean | No | Skip blockchain step |
+| `tamper_demo` | Boolean | No | Show tamper demo |
+| `mock_search` | Boolean | No | Use mock results (offline) |
+
+**Response (SSE stream):**
+
+```
+event: step_started
+data: {"step": "face_detection", "message": "Loading model..."}
+
+event: step_progress
+data: {"step": "face_detection", "message": "Detecting faces..."}
+
+event: step_done
+data: {"step": "face_detection", "data": {...}}
+
+...
+
+event: pipeline_done
+data: {"success": true, "error": null}
+```
 
 ---
 
-## Face matching
+## Project Structure
 
-Cosine similarity between L2-normalised ArcFace embeddings, in three tiers:
-
-| Tier | Meaning |
-|---|---|
-| HIGH | Meets `FACE_MATCH_THRESHOLD` (default 0.55) |
-| PROBABLE | Meets `PROBABLE_MATCH_THRESHOLD` (default 0.45), used as fallback |
-| UNMATCHED | Below probable threshold |
-
-> Thresholds are application-specific — validate against real same-person / different-person examples before treating a score as an identity guarantee.
-
-## Search strategy
-
-Results are never accepted blindly. The search layer uploads the face crop, queries Google Lens, parses visual/exact matches, dedupes URLs, prioritises social platforms (`instagram > facebook > x > linkedin > threads > tiktok > youtube > pinterest`), re-detects faces in candidates, and keeps the strongest verified embedding match.
-
----
-
-## Project structure
-
-```text
+```
 fb-find/
 ├── app/
-│   ├── face/          detector.py, embedder.py, similarity.py
-│   ├── search/        lens.py, parser.py, ranking.py
-│   ├── content/       extractor.py, canonicalizer.py, hashing.py, perceptual.py
-│   ├── blockchain/    client.py, registry.py, verifier.py
-│   ├── web/           routes.py, pipeline.py, templates/, static/
-│   ├── cli/           display.py
-│   ├── config.py
-│   └── main.py
-├── contracts/         ContentRegistry.sol, abi.json
-├── scripts/           deploy.py, test_diagnostics.py
-├── tests/             pytest, no keys needed
-├── sample/  uploads/
-├── run_web.py  start.bat  requirements.txt  .env.example
-└── LICENSE (MIT)
+│   ├── face/              # Face detection & embedding
+│   │   ├── detector.py    # InsightFace wrapper
+│   │   ├── embedder.py    # L2 normalization
+│   │   └── similarity.py  # Cosine similarity + tiers
+│   │
+│   ├── search/            # Web search engines
+│   │   ├── engine.py      # Hybrid search engine
+│   │   ├── engines/       # Individual engines
+│   │   │   ├── google_lens.py
+│   │   │   ├── google_reverse_image.py
+│   │   │   └── yandex.py
+│   │   ├── parser.py      # Result parsing
+│   │   ├── ranking.py     # Social priority ranking
+│   │   └── merger.py      # Multi-engine merger
+│   │
+│   ├── content/           # Image processing
+│   │   ├── extractor.py   # Download + face check
+│   │   ├── canonicalizer.py  # Deterministic JSON
+│   │   └── hashing.py     # SHA-256 fingerprint
+│   │
+│   ├── blockchain/        # Polygon integration
+│   │   ├── client.py      # Web3 connection
+│   │   ├── registry.py    # Smart contract interface
+│   │   └── verifier.py    # Hash comparison
+│   │
+│   ├── web/               # Flask web app
+│   │   ├── routes.py      # API endpoints
+│   │   ├── pipeline.py    # Pipeline orchestration
+│   │   ├── templates/     # HTML templates
+│   │   └── static/        # CSS, JS, media
+│   │
+│   ├── cli/               # CLI display
+│   │   └── display.py     # Rich terminal output
+│   │
+│   ├── config.py          # Configuration
+│   └── main.py            # CLI entry point
+│
+├── contracts/
+│   ├── ContentRegistry.sol  # Smart contract
+│   └── abi.json             # Contract ABI
+│
+├── scripts/
+│   └── deploy.py            # Contract deployment
+│
+├── tests/                   # Pytest tests
+├── samples/                 # Sample images
+├── uploads/                 # User uploads (gitignored)
+│
+├── run_web.py              # Web server entry point
+├── requirements.txt        # Python dependencies
+├── .env.example            # Environment template
+└── LICENSE                 # MIT License
 ```
 
 ---
 
-## Tests & diagnostics
+## Limitations
+
+| Limitation | Details |
+|------------|---------|
+| **SerpApi Free Tier** | 100 searches/month. Use `--mock-search` for offline testing |
+| **Social Media** | Instagram/Facebook often block scraping - many candidates show "No face found" |
+| **Image Quality** | Accuracy depends on face angle, lighting, occlusion |
+| **Single Face** | Only processes the primary (largest) face per image |
+| **Temporary Hosting** | Images uploaded to catbox.moe (public, temporary) |
+| **Testnet Only** | Polygon Amoy is a testnet - no real monetary value |
+
+---
+
+## Security Notes
+
+- **NEVER** commit `.env` file with real keys
+- **NEVER** share your private key
+- The wallet key stays only in your local environment
+- Blockchain stores only the hash, never the image
+- Uploaded images are temporary and auto-deleted
+
+---
+
+## Running Tests
 
 ```bash
+# All tests
 pytest -v
+
+# Specific test files
+pytest tests/test_face.py -v      # Face similarity
+pytest tests/test_search.py -v    # Search parsing
+pytest tests/test_hashing.py -v   # Blockchain hashing
+pytest tests/test_blockchain.py -v  # Contract interaction
+
+# With coverage
 pytest --cov=app tests/
-pytest tests/test_hashing.py -v  # determinism + tamper
-pytest tests/test_face.py -v     # cosine
-pytest tests/test_search.py -v   # parser + ranking
-pytest tests/test_blockchain.py -v
-python scripts/test_diagnostics.py  # env, SerpApi, RPC, wallet, models, hashing
 ```
 
-All tests run offline — no RPC, no SerpApi key. Covered: canonical-JSON determinism, SHA-256/`bytes32`, cosine similarity, confidence tiers, result parsing, URL dedup, social ranking, chain verification states.
-
 ---
 
-## Limitations (honest)
+## License
 
-- SerpApi free = 100 searches/mo; on 429 use `--mock-search`.
-- Social pages often need login; deleted/private/403/robots targets are skipped gracefully.
-- Only the primary face per image is processed; accuracy depends on quality/pose/age.
-- The query image is temporarily uploaded to `catbox.moe` — don't use sensitive images where public temp hosting is unacceptable.
-- Testnet data ≠ production archive; chain storage proves fingerprint integrity, not source truthfulness.
-- Public data only; blockchain stores the fingerprint, not the image.
+MIT License - see [LICENSE](LICENSE) file.
 
----
-
-## Security notes
-
-- Never commit `.env`, private keys, uploads, or screenshots with secrets (`.env`, `uploads/`, `__pycache__/`, `.pytest_cache/`, `.venv/` are git-ignored).
-- The wallet key lives only in the local environment — never in code, docs, recordings, or frontend JS.
+Built with:
+- [InsightFace](https://github.com/deepinsight/insightface) - Face detection
+- [SerpApi](https://serpapi.com) - Google Lens search
+- [Flask](https://flask.palletsprojects.com/) - Web framework
+- [web3.py](https://web3py.readthedocs.io/) - Blockchain
+- [Polygon Amoy](https://polygon.technology/) - Testnet
 
 ---
-
-## Roadmap
-
-Concurrent candidate verification · threshold calibration on a validation set · privacy-preserving search infra · more search providers · persistent history · richer chain records · production object storage · rate limiting · source provenance · multi-face input · perceptual-hash (dHash) matching for crops/re-uploads.
-
----
-
-## HH GOA 2026 — Task 3
-
-```text
-Face Scan → Web / Social Search → Matching Post → Blockchain Fingerprint → Re-verification
-```
-
-Suggested demo recording: Upload → Face Detected → Embedding → Search Results → Match Found → Blockchain Registration → Verified → Tamper Demo.
-
----
-
-## License & credits
-
-MIT — see `LICENSE`. Built with InsightFace, ArcFace, ONNX Runtime, Google Lens/SerpApi, Flask, web3.py, Solidity, Polygon Amoy, Python, Rich.
 
 **Built for the signal, not the noise. Face → Web → Blockchain.**
