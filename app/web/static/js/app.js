@@ -361,7 +361,26 @@ document.addEventListener('DOMContentLoaded', () => {
     function displayVerification(data) {
         const body = $('body-verification');
         const card = $('result-verification');
-        const evalHtml = data.evaluated_candidates && data.evaluated_candidates.length ? `<table class="candidates-table"><thead><tr><th>#</th><th>Source</th><th>Similarity</th><th>Tier</th></tr></thead><tbody>${data.evaluated_candidates.map((c,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(c.source||'Unknown')}</td><td>${c.has_face ? (c.similarity*100).toFixed(1)+'%' : 'No face'}</td><td>${escapeHtml(c.confidence_tier||'—')}</td></tr>`).join('')}</tbody></table>` : '';
+        
+        // Sort evaluated candidates by tier priority: EXACT > HIGH > PROBABLE > UNMATCHED
+        const tierOrder = { 'EXACT': 0, 'HIGH': 1, 'PROBABLE': 2, 'UNMATCHED': 3 };
+        const sortedCandidates = data.evaluated_candidates ? [...data.evaluated_candidates].sort((a, b) => {
+            const tierA = tierOrder[a.confidence_tier] ?? 99;
+            const tierB = tierOrder[b.confidence_tier] ?? 99;
+            if (tierA !== tierB) return tierA - tierB;
+            // Within same tier, sort by similarity descending
+            return (b.similarity || 0) - (a.similarity || 0);
+        }) : [];
+        
+        const evalHtml = sortedCandidates.length ? `<table class="candidates-table"><thead><tr><th>#</th><th>Source</th><th>Similarity</th><th>Tier</th></tr></thead><tbody>${sortedCandidates.map((c,i)=>{ 
+            const tierClass = (c.confidence_tier || 'unmatched').toLowerCase();
+            const simDisplay = c.has_face ? (c.similarity*100).toFixed(1)+'%' : 'No face';
+            const sourceDisplay = c.url 
+                ? `<a href="${escapeHtml(c.url)}" target="_blank" rel="noopener" style="color:var(--mint-2);text-decoration:none" title="${escapeHtml(c.url)}">${escapeHtml(c.source||'Unknown')}</a>`
+                : escapeHtml(c.source||'Unknown');
+            return `<tr class="tier-${tierClass}"><td>${i+1}</td><td>${sourceDisplay}</td><td>${simDisplay}</td><td><span class="tier-badge tier-${tierClass}">${escapeHtml(c.confidence_tier||'—')}</span></td></tr>`;
+        }).join('')}</tbody></table>` : '';
+        
         if (data.status === 'success' && data.matched) {
             card.classList.add('success');
             body.innerHTML = `<div class="verification-badge">✓ MATCH FOUND</div><div class="data-grid">${matchMarginHtml(data)}<div class="data-item"><div class="data-label">Platform</div><div class="data-value">${escapeHtml(data.platform)}</div></div><div class="data-item"><div class="data-label">Similarity</div><div class="data-value success">${(data.similarity*100).toFixed(1)}%</div></div><div class="data-item"><div class="data-label">Confidence</div><div class="data-value">${escapeHtml(data.confidence_tier || 'MATCH')}</div></div><div class="data-item"><div class="data-label">Matched post</div><div class="data-value"><a href="${escapeHtml(data.url)}" target="_blank" rel="noopener">Open source ↗</a></div></div></div>${evalHtml}`;

@@ -15,15 +15,14 @@ SERPAPI_KEY: str | None = os.getenv("SERPAPI_KEY")
 # ── Blockchain ────────────────────────────────────────────────────────
 # All free — no paid RPC needed.  Primary + fallbacks are public endpoints.
 POLYGON_RPC_URL: str = os.getenv(
-    "POLYGON_RPC_URL", "https://rpc-amoy.polygon.technology"
+    "POLYGON_RPC_URL", "https://rpc.ankr.com/polygon_amoy"
 )
 # Public fallbacks (auto-tried if primary is down)
 RPC_FALLBACKS: list[str] = [
-    "https://rpc-amoy.polygon.technology",
-    "https://polygon-amoy.drpc.org",
-    "https://polygon-amoy-bor-rpc.publicnode.com",
     "https://rpc.ankr.com/polygon_amoy",
+    "https://polygon-amoy-bor-rpc.publicnode.com",
     "https://80002.rpc.thirdweb.com",
+    "https://polygon-amoy.drpc.org",
 ]
 PRIVATE_KEY: str | None = os.getenv("PRIVATE_KEY")
 CONTRACT_ADDRESS: str | None = os.getenv("CONTRACT_ADDRESS")
