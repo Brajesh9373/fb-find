@@ -13,7 +13,7 @@ Give it a face image: the pipeline finds the same person in a real web/social re
 
 ```
 face.jpg → InsightFace (ArcFace) → Google Lens (SerpApi free) → social ranking
-       → face re-check (cosine ≥ 0.40) → canonical JSON → SHA-256 (bytes32)
+       → face re-check (cosine ≥ 0.55) → canonical JSON → SHA-256 (bytes32)
        → Polygon Amoy (ContentRegistry) → re-verify → tamper demo
 ```
 
@@ -48,7 +48,7 @@ Built for **HH GOA 2026 — Shortlisting Task 3**. Face scan, web/social search,
 | Face detect + embed | **InsightFace `buffalo_l` + ArcFace (ONNX Runtime CPU)** | MIT, runs locally, no API, no GPU, SOTA accuracy |
 | Reverse image | **Google Lens via SerpApi** (`engine=google_lens`) | 100 searches/month free, no card, genuine live search every run. Fallback `--mock-search` for offline |
 | Image hosting for search | **catbox.moe** | Free temporary public URL so Lens can fetch the query image |
-| Similarity | Cosine on L2-normalised embeddings, `FACE_MATCH_THRESHOLD=0.40`, `PROBABLE_MATCH_THRESHOLD=0.30` (env-tunable) | — |
+| Similarity | Cosine on L2-normalised embeddings, `FACE_MATCH_THRESHOLD=0.55`, `PROBABLE_MATCH_THRESHOLD=0.45` (env-tunable) | — |
 | Fingerprint | Canonical JSON (`sort_keys`, `separators=(',',':')`, UTF-8) → SHA-256 → `0x…` bytes32 | Deterministic, tiny on-chain cost |
 | Blockchain | **Solidity 0.8.20 + web3.py + Polygon Amoy** (chainId 80002) | Free testnet POL via faucet, public RPC with automatic fallbacks, ~2-sec blocks |
 | Web UI | **Flask + SSE streaming** | Live five-stage progress in the browser, no build step |
@@ -324,10 +324,10 @@ PRIVATE_KEY=0x_your_throwaway_wallet_key
 CONTRACT_ADDRESS=0x082F1e254E3E68fd6b15Df24642607dfCEc47252
 POLYGON_RPC_URL=https://polygon-amoy.drpc.org
 CHAIN_ID=80002
-FACE_MATCH_THRESHOLD=0.40
-PROBABLE_MATCH_THRESHOLD=0.30
+FACE_MATCH_THRESHOLD=0.55
+PROBABLE_MATCH_THRESHOLD=0.45
 MAX_CANDIDATES=30
-MAX_CANDIDATES_TO_VERIFY=12
+MAX_CANDIDATES_TO_VERIFY=8
 ```
 
 ### 2. Deploy contract (free, or reuse the address above)
@@ -346,16 +346,16 @@ python scripts/deploy.py --dry-run  # compile only
 python run_web.py                   # → http://127.0.0.1:5000 (or start.bat → option 1)
 
 # Full CLI: face + live search + on-chain
-python -m app.main --image samples/test.jpg --tamper-demo
+python -m app.main --image sample/virat-kohli-photo-4k.webp --tamper-demo
 
 # Face + search only (no blockchain)
-python -m app.main --image samples/test.jpg --skip-blockchain
+python -m app.main --image sample/virat-kohli-photo-4k.webp --skip-blockchain
 
 # Fully offline (no keys) — mock candidates
-python -m app.main --image samples/test.jpg --mock-search --skip-blockchain --tamper-demo
+python -m app.main --image sample/virat-kohli-photo-4k.webp --mock-search --skip-blockchain --tamper-demo
 
 # Tune threshold / verbosity
-python -m app.main --image samples/test.jpg --threshold 0.60 --verbose
+python -m app.main --image sample/virat-kohli-photo-4k.webp --threshold 0.60 --verbose
 ```
 
 **Expected CLI:**
@@ -402,8 +402,8 @@ Cosine similarity between L2-normalised ArcFace embeddings, in three tiers:
 
 | Tier | Meaning |
 |---|---|
-| HIGH | Meets `FACE_MATCH_THRESHOLD` (default 0.40) |
-| PROBABLE | Meets `PROBABLE_MATCH_THRESHOLD` (default 0.30), used as fallback |
+| HIGH | Meets `FACE_MATCH_THRESHOLD` (default 0.55) |
+| PROBABLE | Meets `PROBABLE_MATCH_THRESHOLD` (default 0.45), used as fallback |
 | UNMATCHED | Below probable threshold |
 
 > Thresholds are application-specific — validate against real same-person / different-person examples before treating a score as an identity guarantee.
@@ -430,7 +430,7 @@ fb-find/
 ├── contracts/         ContentRegistry.sol, abi.json
 ├── scripts/           deploy.py, test_diagnostics.py
 ├── tests/             pytest, no keys needed
-├── samples/  uploads/
+├── sample/  uploads/
 ├── run_web.py  start.bat  requirements.txt  .env.example
 └── LICENSE (MIT)
 ```

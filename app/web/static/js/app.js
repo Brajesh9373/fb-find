@@ -351,82 +351,23 @@ document.addEventListener('DOMContentLoaded', () => {
         } else { card.classList.add('error'); body.innerHTML = `<p class="data-value error">Web search failed.</p>`; }
     }
 
+    function matchMarginHtml(data) {
+        const scored = (data.evaluated_candidates || []).filter((c) => c.has_face).map((c) => Number(c.similarity) || 0).sort((a, b) => b - a);
+        if (scored.length < 2) return '';
+        const margin = (scored[0] - scored[1]) * 100;
+        return `<div class="data-item" style="grid-column:1/-1"><div class="data-label">Lead over runner-up</div><div class="data-value">+${margin.toFixed(1)} percentage points</div></div>`;
+    }
+
     function displayVerification(data) {
         const body = $('body-verification');
         const card = $('result-verification');
-        
-        // Build grouped matches HTML
-        let groupedHtml = '';
-        const tierOrder = ['EXACT', 'HIGH', 'PROBABLE', 'UNMATCHED'];
-        const tierColors = {
-            EXACT: '#22c55e',
-            HIGH: '#3b82f6',
-            PROBABLE: '#f59e0b',
-            UNMATCHED: '#6b7280'
-        };
-
-        // Collect all candidates into groups
-        const groups = {};
-        tierOrder.forEach(t => groups[t] = []);
-        
-        // Use all_matches if available, otherwise evaluated_candidates
-        const allMatches = data.all_matches || [];
-        const exactMatches = data.exact_matches || [];
-        const evalCandidates = data.evaluated_candidates || [];
-        
-        if (allMatches.length > 0) {
-            // Group all_matches by tier
-            allMatches.forEach(c => {
-                const tier = c.confidence_tier || 'UNMATCHED';
-                groups[tier].push(c);
-            });
-        } else {
-            // Fallback to evaluated_candidates
-            evalCandidates.forEach(c => {
-                const tier = c.confidence_tier || 'UNMATCHED';
-                groups[tier].push(c);
-            });
-        }
-
-        // Build grouped HTML
-        tierOrder.forEach(tier => {
-            const items = groups[tier];
-            if (items.length === 0) return;
-            
-            const tierCount = items.length;
-            const color = tierColors[tier] || '#6b7280';
-            
-            groupedHtml += `<div class="match-group"><div class="match-group-header" style="color:${color}"><span class="tier-badge" style="background:${color}20;color:${color}">${tier}</span><span class="tier-count">${tierCount} match${tierCount > 1 ? 'es' : ''}</span></div><div class="match-group-list">`;
-            
-            items.forEach((c, idx) => {
-                const sim = c.similarity || 0;
-                const simPct = (sim * 100).toFixed(1) + '%';
-                const url = c.url || '#';
-                const source = c.source || 'Unknown';
-                const title = c.title || '';
-                const hasLink = url !== '#';
-                
-                groupedHtml += `<div class="match-row ${tier.toLowerCase()}"><div class="match-row-index">${idx + 1}</div><div class="match-row-content">${hasLink ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="match-link"><span class="match-source">${escapeHtml(source)}</span><span class="match-title">${escapeHtml(title.slice(0, 60))}${(title || '').length > 60 ? '…' : ''}</span></a>` : `<span class="match-source">${escapeHtml(source)}</span><span class="match-title">No link available</span>`}</div><div class="match-similarity ${tier.toLowerCase()}">${simPct}</div></div>`;
-            });
-            
-            groupedHtml += `</div></div>`;
-        });
-
+        const evalHtml = data.evaluated_candidates && data.evaluated_candidates.length ? `<table class="candidates-table"><thead><tr><th>#</th><th>Source</th><th>Similarity</th><th>Tier</th></tr></thead><tbody>${data.evaluated_candidates.map((c,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(c.source||'Unknown')}</td><td>${c.has_face ? (c.similarity*100).toFixed(1)+'%' : 'No face'}</td><td>${escapeHtml(c.confidence_tier||'—')}</td></tr>`).join('')}</tbody></table>` : '';
         if (data.status === 'success' && data.matched) {
             card.classList.add('success');
-            body.innerHTML = `
-                <div class="verification-badge">✓ MATCH FOUND</div>
-                <div class="data-grid">
-                    <div class="data-item"><div class="data-label">Platform</div><div class="data-value">${escapeHtml(data.platform)}</div></div>
-                    <div class="data-item"><div class="data-label">Similarity</div><div class="data-value success">${(data.similarity*100).toFixed(1)}%</div></div>
-                    <div class="data-item"><div class="data-label">Confidence</div><div class="data-value" style="color:${tierColors[data.confidence_tier] || '#fff'}">${escapeHtml(data.confidence_tier || 'MATCH')}</div></div>
-                    <div class="data-item"><div class="data-label">Matched post</div><div class="data-value"><a href="${escapeHtml(data.url)}" target="_blank" rel="noopener">Open source ↗</a></div></div>
-                </div>
-                ${groupedHtml}
-            `;
+            body.innerHTML = `<div class="verification-badge">✓ MATCH FOUND</div><div class="data-grid">${matchMarginHtml(data)}<div class="data-item"><div class="data-label">Platform</div><div class="data-value">${escapeHtml(data.platform)}</div></div><div class="data-item"><div class="data-label">Similarity</div><div class="data-value success">${(data.similarity*100).toFixed(1)}%</div></div><div class="data-item"><div class="data-label">Confidence</div><div class="data-value">${escapeHtml(data.confidence_tier || 'MATCH')}</div></div><div class="data-item"><div class="data-label">Matched post</div><div class="data-value"><a href="${escapeHtml(data.url)}" target="_blank" rel="noopener">Open source ↗</a></div></div></div>${evalHtml}`;
         } else {
             card.classList.add('error');
-            body.innerHTML = `<div class="verification-badge failed">× NO MATCH</div><p class="data-value error">No candidate passed the verification threshold.</p>${groupedHtml}`;
+            body.innerHTML = `<div class="verification-badge failed">× NO MATCH</div><p class="data-value error">No candidate passed the verification threshold.</p><div class="data-grid">${matchMarginHtml(data)}</div>${evalHtml}`;
         }
     }
 

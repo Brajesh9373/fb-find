@@ -45,7 +45,7 @@ class GoogleLensSearcher:
             raise RuntimeError(
                 "SERPAPI_KEY is not set.\n"
                 "  Free setup (30s): https://serpapi.com/users/sign_up → copy API key → add to .env\n"
-                "  Or run offline demo:  python -m app.main --image samples/test.jpg --mock-search --skip-blockchain"
+                "  Or run offline demo:  python -m app.main --image sample/virat-kohli-photo-4k.webp --mock-search --skip-blockchain"
             )
         if not os.path.exists(image_path):
             raise FileNotFoundError(f"Image not found: {image_path}")

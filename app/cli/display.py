@@ -124,7 +124,7 @@ def candidates_table(candidates: list[dict]):
     table.add_column("Source", style="cyan")
     table.add_column("Title", style="white", max_width=55, overflow="ellipsis")
     table.add_column("URL", style="dim", max_width=45, overflow="ellipsis")
-    table.add_column("Score", justify="right", style="magenta")
+    table.add_column("Type", justify="right", style="magenta")
     from app.search.ranking import _social_score
 
     for c in candidates[:12]:
@@ -134,7 +134,7 @@ def candidates_table(candidates: list[dict]):
             c.get("source", "")[:20],
             c.get("title", "")[:55],
             c.get("url", "")[:45],
-            str(score),
+            "social" if score else "web",
         )
     console.print(table)
  
